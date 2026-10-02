@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import WinnowCore
+@testable import CullDashCore
 
 @Suite struct XMPSidecarTests {
     let folder: URL
@@ -26,7 +26,7 @@ import Testing
         #expect(XMPSidecar.read(url)?.flag == .reject)
     }
 
-    @Test func readsBridgeRejectWithoutWinnowField() throws {
+    @Test func readsBridgeRejectWithoutCullDashField() throws {
         let url = folder.appendingPathComponent("bridge.xmp")
         try sidecar(attributes: "xmp:Rating=\"-1\"").write(to: url, atomically: true, encoding: .utf8)
         #expect(XMPSidecar.read(url) == Culling(flag: .reject))
@@ -54,7 +54,7 @@ import Testing
         try XMPSidecar.write(Culling(flag: .pick, rating: 3, label: .red), to: url)
         try XMPSidecar.write(Culling(), to: url)
         let xml = try String(contentsOf: url, encoding: .utf8)
-        #expect(!xml.contains("Rating") && !xml.contains("Label") && !xml.contains("winnow:Flag"))
+        #expect(!xml.contains("Rating") && !xml.contains("Label") && !xml.contains("culldash:Flag"))
     }
 
     @Test func writesNothingForAnUndecidedNewPhoto() throws {

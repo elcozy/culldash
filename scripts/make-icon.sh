@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Renders Resources/AppIcon.icns from the logo code in
-# Sources/Winnow/Components/LogoDrawing.swift, so the Dock icon and the
+# Sources/CullDash/Components/LogoDrawing.swift, so the Dock icon and the
 # logo inside the app are drawn by the same function.
 #
 #     scripts/make-icon.sh
@@ -31,7 +31,7 @@ for points in [16, 32, 128, 256, 512] {
     }
 }
 EOF
-swiftc -O Sources/Winnow/Components/LogoDrawing.swift "$work/main.swift" -o "$work/render"
+swiftc -O Sources/CullDash/Components/LogoDrawing.swift "$work/main.swift" -o "$work/render"
 "$work/render" "$iconset"
 iconutil -c icns "$iconset" -o Resources/AppIcon.icns
 echo "Wrote Resources/AppIcon.icns"

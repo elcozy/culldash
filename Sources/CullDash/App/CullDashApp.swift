@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct WinnowApp: App {
+struct CullDashApp: App {
     @State private var store = LibraryStore()
 
     init() {
@@ -21,7 +21,7 @@ struct WinnowApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Winnow") {
+        WindowGroup("CullDash") {
             ContentView()
                 .environment(store)
                 .modifier(KeyCommandsModifier(store: store))

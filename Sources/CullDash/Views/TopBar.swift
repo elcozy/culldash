@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// The window's top, in place of the standard title bar: the logo and the
 /// shoot's name on the left, search in the middle, Send on the right.

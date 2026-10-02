@@ -5,15 +5,15 @@ import Foundation
 ///
 /// Stars go in `xmp:Rating` and colour in `xmp:Label`. A reject is written as
 /// rating -1, Bridge's convention. Picks have no standard field, so they are
-/// kept in Winnow's own `winnow:Flag`, which other apps ignore. An existing
+/// kept in CullDash's own `culldash:Flag`, which other apps ignore. An existing
 /// sidecar is edited in place: develop settings other apps stored in it stay.
 public enum XMPSidecar {
     static let xmpNS = "http://ns.adobe.com/xap/1.0/"
-    static let winnowNS = "https://winnow.app/ns/1.0/"
+    static let culldashNS = "https://culldash.app/ns/1.0/"
 
     static let template = """
         <?xml version="1.0" encoding="UTF-8"?>
-        <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Winnow">
+        <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="CullDash">
          <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
           <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/"/>
          </rdf:RDF>
@@ -26,7 +26,7 @@ public enum XMPSidecar {
         else { return nil }
         let rating = Int(value(of: "Rating", in: xmpNS, on: description) ?? "") ?? 0
         let label = ColorLabel(rawValue: value(of: "Label", in: xmpNS, on: description) ?? "") ?? .none
-        var flag = Flag(rawValue: value(of: "Flag", in: winnowNS, on: description) ?? "") ?? .none
+        var flag = Flag(rawValue: value(of: "Flag", in: culldashNS, on: description) ?? "") ?? .none
         if flag == .none && rating < 0 { flag = .reject }
         return Culling(flag: flag, rating: rating, label: label)
     }
@@ -43,7 +43,7 @@ public enum XMPSidecar {
             culling.flag == .reject ? "-1" : (culling.rating > 0 ? String(culling.rating) : nil)
         set("Rating", prefix: "xmp", in: xmpNS, to: rating, on: description)
         set("Label", prefix: "xmp", in: xmpNS, to: culling.label == .none ? nil : culling.label.rawValue, on: description)
-        set("Flag", prefix: "winnow", in: winnowNS, to: culling.flag == .none ? nil : culling.flag.rawValue, on: description)
+        set("Flag", prefix: "culldash", in: culldashNS, to: culling.flag == .none ? nil : culling.flag.rawValue, on: description)
         try document.xmlData(options: [.nodePrettyPrint]).write(to: url, options: .atomic)
     }
 

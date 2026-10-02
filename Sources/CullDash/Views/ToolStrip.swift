@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// The second layer under the window bar: how photos are shown and which
 /// ones, on the left; trashing the rejects on the right.

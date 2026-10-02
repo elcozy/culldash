@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// How the photos are shown.
 enum ViewMode {
@@ -15,8 +15,8 @@ enum ViewMode {
 final class LibraryStore {
     /// The folder or drive the shoot came from; nil on the start screen.
     private(set) var folder: URL?
-    /// "winnow-test", or a drive's name when the whole drive is open.
-    private(set) var title = "Winnow"
+    /// "culldash-test", or a drive's name when the whole drive is open.
+    private(set) var title = "CullDash"
     var photos: [Photo] = []
     var filter = PhotoFilter() { didSet { keepSelectionVisible() } }
     var selectedID: Photo.ID?
@@ -99,7 +99,7 @@ final class LibraryStore {
         warmTask?.cancel()
         burstTask?.cancel()
         folder = nil
-        title = "Winnow"
+        title = "CullDash"
         photos = []
         selectedID = nil
         mode = .grid

@@ -1,5 +1,5 @@
 import Foundation
-import WinnowCore
+import CullDashCore
 
 /// A photo that went to the Trash, with its files' way back.
 struct TrashedPhoto {

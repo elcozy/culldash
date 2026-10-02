@@ -1,5 +1,5 @@
 import Foundation
-import WinnowCore
+import CullDashCore
 
 /// Grouping near-identical frames (bursts and re-takes of one pose) so one
 /// or two can be kept and the rest rejected in one go.

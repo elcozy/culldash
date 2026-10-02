@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// The start screen. Left: a welcome, recent shoots and the main keys.
 /// Right: the drives plugged in, each opening to its photo folders.

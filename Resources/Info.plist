@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Winnow</string>
+    <string>CullDash</string>
     <key>CFBundleDisplayName</key>
-    <string>Winnow</string>
+    <string>CullDash</string>
     <key>CFBundleIdentifier</key>
-    <string>app.winnow.mac</string>
+    <string>app.culldash.mac</string>
     <key>CFBundleExecutable</key>
-    <string>Winnow</string>
+    <string>CullDash</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundlePackageType</key>

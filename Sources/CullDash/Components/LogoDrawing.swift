@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// The Winnow mark, drawn with Core Graphics: a fanned stack of photos on
+/// The CullDash mark, drawn with Core Graphics: a fanned stack of photos on
 /// the accent blue, the front one a picture with a green keeper badge.
 ///
 /// The same function draws the logo inside the app and renders the app

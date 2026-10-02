@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// One drive on the start screen: icon, name, kind and a capacity bar,
 /// "Open all" for every photo on it, and, opened, its photo folders.

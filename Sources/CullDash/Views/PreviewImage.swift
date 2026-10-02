@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// A photo's embedded preview, loaded off the main thread. A preview that is
 /// already cached shows straight away, so flicking through never flashes.

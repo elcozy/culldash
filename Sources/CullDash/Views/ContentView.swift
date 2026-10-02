@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// The window: the bar on top, then the empty state, the grid or one photo.
 struct ContentView: View {
@@ -36,7 +36,7 @@ struct ContentView: View {
         .background(Theme.canvas)
         .foregroundStyle(Theme.text)
         .task {
-            // `open -a Winnow --args -folder <path>`. A dash argument lands in
+            // `open -a CullDash --args -folder <path>`. A dash argument lands in
             // UserDefaults; a bare path would make AppKit treat it as a file
             // to open and skip the main window.
             if store.folder == nil, let path = UserDefaults.standard.string(forKey: "folder") {
@@ -64,7 +64,7 @@ private struct StartBar: View {
     var body: some View {
         HStack(spacing: 8) {
             LogoMark(size: 22)
-            Text("Winnow").font(.system(size: 13, weight: .bold)).tracking(-0.2)
+            Text("CullDash").font(.system(size: 13, weight: .bold)).tracking(-0.2)
             Text("Cull RAW shoots fast").font(.system(size: 12)).foregroundStyle(Theme.subtle)
             Spacer()
         }

@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// Every photo shown as a thumbnail; click selects, double-click opens.
 struct PhotoGrid: View {

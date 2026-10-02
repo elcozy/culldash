@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// One photo as large as the window allows, its details underneath.
 struct LoupeView: View {

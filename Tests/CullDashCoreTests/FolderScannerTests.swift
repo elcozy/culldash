@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import WinnowCore
+@testable import CullDashCore
 
 @Suite struct FolderScannerTests {
     @Test func pairsRawWithJpegAndSkipsJunk() throws {

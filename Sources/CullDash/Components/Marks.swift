@@ -1,5 +1,5 @@
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// The stars a photo has, as filled and empty stars.
 struct StarsView: View {
@@ -48,7 +48,7 @@ struct LabelDot: View {
     }
 }
 
-/// The Winnow logo at any size, drawn by the same code as the app icon.
+/// The CullDash logo at any size, drawn by the same code as the app icon.
 struct LogoMark: View {
     var size: CGFloat = 22
 
@@ -57,6 +57,6 @@ struct LogoMark: View {
             context.withCGContext { LogoDrawing.draw(in: $0, size: canvas.width) }
         }
         .frame(width: size, height: size)
-        .accessibilityLabel("Winnow")
+        .accessibilityLabel("CullDash")
     }
 }

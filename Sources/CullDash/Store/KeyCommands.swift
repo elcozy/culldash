@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// The culling keys. They are read from the window's key events directly,
 /// so they work wherever focus is, and ⌘ shortcuts still reach the menus.

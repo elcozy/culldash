@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import WinnowCore
+import CullDashCore
 
 /// The one source of colours and sizes in the app. Each colour has a
 /// light value (warm cream) and a dark one (Base neutrals), and follows the

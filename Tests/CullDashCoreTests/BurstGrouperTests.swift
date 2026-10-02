@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import WinnowCore
+@testable import CullDashCore
 
 @Suite struct BurstGrouperTests {
     private func frames(_ seconds: [TimeInterval]) -> [BurstGrouper.Frame] {
