@@ -10,12 +10,57 @@ Lightroom or any editor with their stars and labels.
 - Safe: every delete goes to the Trash and ⌘Z brings it back.
 - Photos and videos from cards (including the Mac's SD slot), drives and this Mac.
 
-## Build
+## Run the app
 
-Needs macOS 14+ and the Xcode Command Line Tools.
+You need macOS 14 or later and the Xcode Command Line Tools
+(`xcode-select --install` if you don't have them).
+
+1. Get the code:
+
+    ```sh
+    git clone https://github.com/elcozy/sortRaw.app.git culldash
+    cd culldash
+    ```
+
+2. Build the app:
+
+    ```sh
+    scripts/build.sh app
+    ```
+
+    This makes `build/CullDash.app` (about a minute the first time).
+
+3. Open it:
+
+    ```sh
+    open build/CullDash.app
+    ```
+
+    Or drag `build/CullDash.app` into your Applications folder and open it from there.
+
+4. The first time it reads a card, drive or your Desktop, macOS asks for
+   permission. Click **Allow**.
+
+5. Pick a card or drive on the start screen, then a folder (or **Open all**),
+   and start culling with the keys below.
+
+After pulling new code, run steps 2 and 3 again. Quit the open copy first (⌘Q).
+
+## Run the website
+
+The landing page lives in `site/`. You need Node 20+ and pnpm.
 
 ```sh
-scripts/build.sh app      # builds build/CullDash.app
+cd site
+pnpm install    # first time only
+pnpm dev        # then open http://localhost:3000
+```
+
+`pnpm build && pnpm start` runs the production build instead.
+
+## Other scripts
+
+```sh
 scripts/build.sh test     # runs the CullDashCore tests
 scripts/make-icon.sh      # redraws Resources/AppIcon.icns from the logo code
 scripts/diagrams.py       # renders docs/diagrams/*.puml into docs/APPFLOW.md (needs Java)
@@ -23,6 +68,9 @@ scripts/diagrams.py       # renders docs/diagrams/*.puml into docs/APPFLOW.md (n
 
 `scripts/build.sh` drives `swiftc` directly; `Package.swift` describes the same
 targets for Xcode and `swift build`.
+
+For testing, `build/CullDash.app/Contents/MacOS/CullDash -folder <path>` opens a
+folder straight away, and `-appearance light` or `dark` pins the look.
 
 ## Keys
 
