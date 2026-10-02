@@ -9,6 +9,15 @@ struct WinnowApp: App {
         // Built outside Xcode, the binary must ask to be a regular app with a
         // Dock icon and a menu bar.
         NSApplication.shared.setActivationPolicy(.regular)
+        // macOS can remember "no windows open" from a previous run and then
+        // start the app with none. A culling app should always open its window.
+        UserDefaults.standard.register(defaults: ["ApplePersistenceIgnoreState": true])
+        // Follows the Mac's appearance; `-appearance light` or `dark` pins one.
+        switch UserDefaults.standard.string(forKey: "appearance") {
+        case "light": NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+        default: break
+        }
     }
 
     var body: some Scene {
@@ -16,7 +25,6 @@ struct WinnowApp: App {
             ContentView()
                 .environment(store)
                 .modifier(KeyCommandsModifier(store: store))
-                .preferredColorScheme(.dark)
                 .frame(minWidth: 960, minHeight: 620)
                 .navigationTitle(store.title)
                 .background(WindowChrome())
