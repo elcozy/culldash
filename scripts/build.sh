@@ -18,7 +18,7 @@ mkdir -p "$OUT"
 core() {
     local testing=()
     [ "${1:-}" = test ] && testing=(-enable-testing)
-    swiftc -O -module-name WinnowCore -parse-as-library -emit-library -static "${testing[@]}" \
+    swiftc -O -module-name WinnowCore -parse-as-library -emit-library -static ${testing[@]+"${testing[@]}"} \
         -emit-module -emit-module-path "$OUT/WinnowCore.swiftmodule" \
         $(find Sources/WinnowCore -name '*.swift') -o "$OUT/libWinnowCore.a"
 }
