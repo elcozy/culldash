@@ -2,24 +2,88 @@ import AppKit
 import SwiftUI
 import WinnowCore
 
-/// The start screen: the drives plugged in, each opening to the folders on
-/// it that hold photos. A small link covers any other folder.
+/// The start screen. Left: a welcome, recent shoots and the main keys.
+/// Right: the drives plugged in, each opening to its photo folders.
 struct EmptyStateView: View {
     @Environment(LibraryStore.self) private var store
     @State private var locations: [StorageLocation] = []
+    @State private var recents: [RecentShoot] = []
     /// Only one drive is open at a time, so the list never floods.
     @State private var openID: StorageLocation.ID?
+    @State private var spin = 0.0
 
     var body: some View {
+        HStack(alignment: .top, spacing: 56) {
+            welcome.frame(width: 300, alignment: .leading)
+            storage.frame(maxWidth: 560)
+        }
+        .padding(.horizontal, 48)
+        .padding(.vertical, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear(perform: refresh)
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in refresh() }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didUnmountNotification)) { _ in refresh() }
+    }
+
+    private var welcome: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: "camera.aperture")
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(Theme.accent)
+                .padding(.bottom, 18)
             Text("Choose a shoot")
-                .font(.system(size: 22, weight: .bold))
-                .tracking(-0.5)
-                .padding(.bottom, 4)
-            Text("Pick a drive, then a folder. Nothing is imported or copied.")
-                .font(.system(size: 13))
+                .font(.system(size: 30, weight: .bold))
+                .tracking(-0.8)
+            Text("Pick a card or drive. Your RAWs stay where they are: nothing is imported or copied.")
+                .font(.system(size: 14))
                 .foregroundStyle(Theme.muted)
-                .padding(.bottom, 20)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+
+            if !recents.isEmpty {
+                SectionTitle("Recent").padding(.top, 32)
+                ForEach(recents) { recent in
+                    RecentRow(recent: recent) {
+                        Task {
+                            await store.open(
+                                recent.folders.map { URL(fileURLWithPath: $0, isDirectory: true) },
+                                root: URL(fileURLWithPath: recent.root, isDirectory: true),
+                                title: recent.title)
+                        }
+                    }
+                }
+            }
+
+            SectionTitle("Keys").padding(.top, 32)
+            VStack(alignment: .leading, spacing: 8) {
+                KeyTip(key: "P", text: "pick a keeper")
+                KeyTip(key: "X", text: "reject")
+                KeyTip(key: "1–5", text: "stars")
+                KeyTip(key: "Del", text: "to the Trash, ⌘Z undoes")
+            }
+        }
+    }
+
+    private var storage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                SectionTitle("Storage")
+                Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.5)) { spin += 360 }
+                    refresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 13, weight: .semibold))
+                        .rotationEffect(.degrees(spin))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.muted)
+                .help("Look for drives and cards again")
+            }
+            .padding(.bottom, 8)
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -28,134 +92,91 @@ struct EmptyStateView: View {
                             withAnimation(.easeOut(duration: 0.15)) {
                                 openID = openID == location.id ? nil : location.id
                             }
-                        } onOpen: { folder in
-                            Task { await store.open(folder) }
+                        } onOpen: { folders, title in
+                            Task { await store.open(folders, root: location.url, title: title) }
                         }
                     }
                     Rectangle().fill(Theme.hairline).frame(height: 1)
                 }
             }
-            .frame(maxHeight: 460)
-            .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 6) {
-                Button("Choose another folder…") { store.chooseFolder() }
+                Button("Choose a folder…") { store.chooseFolder() }
                     .buttonStyle(.plain)
                     .foregroundStyle(Theme.accent)
-                Text("⌘O · or drop a folder here").foregroundStyle(Theme.subtle)
+                Text("⌘O · or drop a folder anywhere").foregroundStyle(Theme.subtle)
             }
             .font(.system(size: 12, weight: .medium))
-            .padding(.top, 16)
+            .padding(.top, 14)
         }
-        .frame(maxWidth: 520)
-        .padding(32)
-        .onAppear(perform: refresh)
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in refresh() }
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didUnmountNotification)) { _ in refresh() }
     }
 
     private func refresh() {
         locations = StorageScanner.locations()
+        recents = RecentShoots.load()
         if let openID, !locations.contains(where: { $0.id == openID }) { self.openID = nil }
     }
 }
 
-/// One drive: icon, name and space used; open, the photo folders on it.
-private struct StorageRow: View {
-    let location: StorageLocation
-    let isOpen: Bool
-    let onToggle: () -> Void
-    let onOpen: (URL) -> Void
-    @State private var folders: [ShootFolder]?
-    @State private var hovering = false
+/// A small plain-text label above a group (never a pill).
+private struct SectionTitle: View {
+    let text: String
+    init(_ text: String) { self.text = text }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.hairline).frame(height: 1)
-            Button(action: onToggle) {
-                HStack(spacing: 12) {
-                    Image(systemName: location.kind == .card ? "sdcard.fill" : location.kind == .drive ? "externaldrive.fill" : "photo.on.rectangle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Theme.muted)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(location.name).font(.system(size: 14, weight: .semibold))
-                        if let usage { Text(usage).font(.system(size: 12)).foregroundStyle(Theme.subtle) }
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.subtle)
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 8)
-                .background(hovering ? Theme.raised : .clear, in: RoundedRectangle(cornerRadius: Theme.controlRadius))
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering = $0 }
-
-            if isOpen { folderList.padding(.leading, 44).padding(.bottom, 8) }
-        }
-        .task(id: isOpen) {
-            guard isOpen, folders == nil else { return }
-            let root = location.url
-            folders = await Task.detached(priority: .userInitiated) { StorageScanner.shootFolders(in: root) }.value
-        }
-    }
-
-    @ViewBuilder private var folderList: some View {
-        if let folders {
-            if folders.isEmpty {
-                Text("No photos found near the top of this drive. Use “Choose another folder…”.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.subtle)
-                    .padding(.vertical, 8)
-            }
-            ForEach(folders) { folder in
-                FolderRow(folder: folder) { onOpen(folder.url) }
-            }
-        } else {
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Looking for photos…").font(.system(size: 12)).foregroundStyle(Theme.subtle)
-            }
-            .padding(.vertical, 8)
-        }
-    }
-
-    private var usage: String? {
-        guard let total = location.total, let available = location.available else { return nil }
-        let format = ByteCountFormatter()
-        format.countStyle = .file
-        return "\(format.string(fromByteCount: available)) free of \(format.string(fromByteCount: total))"
+        Text(text.uppercased())
+            .font(.system(size: 11, weight: .semibold))
+            .tracking(1.2)
+            .foregroundStyle(Theme.subtle)
+            .padding(.bottom, 8)
     }
 }
 
-/// A folder of photos inside a drive; click to open it.
-private struct FolderRow: View {
-    let folder: ShootFolder
+private struct RecentRow: View {
+    let recent: RecentShoot
     let action: () -> Void
     @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(Theme.subtle)
-                Text(folder.path).font(.system(size: 13)).lineLimit(1).truncationMode(.middle)
+                Image(systemName: recent.isWholeDrive ? "externaldrive" : "folder")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.subtle)
+                    .frame(width: 16)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(recent.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    Text(recent.opened.formatted(.relative(presentation: .named)))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.subtle)
+                }
                 Spacer()
-                Text("\(folder.photoCount.formatted()) photos").font(.system(size: 12)).foregroundStyle(Theme.subtle)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(hovering ? Theme.accent : .clear)
             }
-            .padding(.vertical, 7)
-            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 6)
             .background(hovering ? Theme.raised : .clear, in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!recent.isAvailable)
+        .opacity(recent.isAvailable ? 1 : 0.4)
+        .help(recent.isAvailable ? recent.root : "Plug in the drive to open this again")
         .onHover { hovering = $0 }
+    }
+}
+
+private struct KeyTip: View {
+    let key: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(key)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .frame(minWidth: 34)
+                .padding(.vertical, 3)
+                .background(Theme.raised, in: RoundedRectangle(cornerRadius: 5))
+            Text(text).font(.system(size: 12)).foregroundStyle(Theme.muted)
+        }
     }
 }

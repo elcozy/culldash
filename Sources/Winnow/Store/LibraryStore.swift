@@ -85,6 +85,7 @@ final class LibraryStore {
             trashHistory = []
             groupBursts = false
             warmThumbnails()
+            RecentShoots.remember(title: title, folders: folders, root: root)
         } catch {
             errorMessage = "Couldn't open \(title): \(error.localizedDescription)"
         }
