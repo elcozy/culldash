@@ -64,24 +64,28 @@ struct StorageRow: View {
     @ViewBuilder private var folderList: some View {
         if let folders {
             if folders.isEmpty {
-                Text("No photos found near the top of this drive. Use “Choose a folder…”.")
+                Text("No photos or videos found near the top. Use “Choose a folder…”.")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.subtle)
                     .padding(.vertical, 8)
             } else if folders.count > 1 {
-                FolderRow(icon: "photo.stack", title: "All photos", count: folders.map(\.photoCount).reduce(0, +), emphasis: true) {
+                FolderRow(
+                    icon: "photo.stack", title: "Everything on this drive",
+                    count: Self.summary(folders.map(\.photoCount).reduce(0, +), folders.map(\.videoCount).reduce(0, +)),
+                    emphasis: true
+                ) {
                     onOpen(folders.map(\.url), location.name)
                 }
             }
             ForEach(folders) { folder in
-                FolderRow(icon: "folder", title: folder.path, count: folder.photoCount, emphasis: false) {
+                FolderRow(icon: "folder", title: folder.path, count: Self.summary(folder.photoCount, folder.videoCount), emphasis: false) {
                     onOpen([folder.url], folder.url.lastPathComponent)
                 }
             }
         } else {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("Looking for photos…").font(.system(size: 12)).foregroundStyle(Theme.subtle)
+                Text("Looking for photos and videos…").font(.system(size: 12)).foregroundStyle(Theme.subtle)
             }
             .padding(.vertical, 8)
         }
@@ -99,11 +103,25 @@ struct StorageRow: View {
         onOpen(folders.map(\.url), location.name)
     }
 
+    /// "1,335 photos · 12 videos", leaving out a kind there is none of.
+    static func summary(_ photos: Int, _ videos: Int) -> String {
+        var parts: [String] = []
+        if photos > 0 { parts.append("\(photos.formatted()) photo\(photos == 1 ? "" : "s")") }
+        if videos > 0 { parts.append("\(videos.formatted()) video\(videos == 1 ? "" : "s")") }
+        return parts.joined(separator: " · ")
+    }
+
     private var symbol: String {
         switch location.kind {
         case .card: "sdcard.fill"
         case .drive: "externaldrive.fill"
-        case .mac: "photo.on.rectangle.angled"
+        case .mac:
+            switch location.name {
+            case "Movies": "film"
+            case "Desktop": "menubar.dock.rectangle"
+            case "Downloads": "arrow.down.circle"
+            default: "photo.on.rectangle.angled"
+            }
         }
     }
 
@@ -149,7 +167,7 @@ private struct CapacityBar: View {
 private struct FolderRow: View {
     let icon: String
     let title: String
-    let count: Int
+    let count: String
     let emphasis: Bool
     let action: () -> Void
     @State private var hovering = false
@@ -163,7 +181,7 @@ private struct FolderRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer()
-                Text("\(count.formatted()) photos").font(.system(size: 12)).foregroundStyle(Theme.subtle)
+                Text(count).font(.system(size: 12)).foregroundStyle(Theme.subtle)
                 Image(systemName: "arrow.right")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(hovering ? Theme.accent : .clear)

@@ -27,6 +27,7 @@ public struct ShootFolder: Identifiable, Hashable, Sendable {
     /// The path from the drive, e.g. "DCIM/100MSDCF".
     public let path: String
     public let photoCount: Int
+    public let videoCount: Int
 
     public var id: URL { url }
 }
@@ -59,8 +60,14 @@ public enum StorageScanner {
             )
         }
         .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        if let pictures = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first {
-            found.append(StorageLocation(url: pictures, name: "Pictures", kind: .mac, available: nil, total: nil))
+        let places: [(FileManager.SearchPathDirectory, String)] = [
+            (.picturesDirectory, "Pictures"), (.moviesDirectory, "Movies"),
+            (.desktopDirectory, "Desktop"), (.downloadsDirectory, "Downloads"),
+        ]
+        for (directory, name) in places {
+            if let url = FileManager.default.urls(for: directory, in: .userDomainMask).first {
+                found.append(StorageLocation(url: url, name: name, kind: .mac, available: nil, total: nil))
+            }
         }
         return found
     }
@@ -75,10 +82,11 @@ public enum StorageScanner {
         return results.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
 
-    /// Folders a camera keeps for its own use: video clip thumbnails and
-    /// indexes, not photos to cull.
+    /// Folders a camera keeps for its own use (clip thumbnails, proxies,
+    /// indexes), not files to cull. Sony's clips themselves live in
+    /// PRIVATE/M4ROOT/CLIP, which is searched.
     static let skippedFolders: Set<String> = [
-        "private", "avf_info", "mp_root", "thmbnl", "m4root", "system volume information", "$recycle.bin",
+        "thmbnl", "sub", "general", "avf_info", "system volume information", "$recycle.bin",
     ]
 
     /// At most this many folders are read per drive, so a big archive
@@ -94,10 +102,15 @@ public enum StorageScanner {
             let entries = try? FileManager.default.contentsOfDirectory(
                 at: folder, includingPropertiesForKeys: [.isDirectoryKey, .isPackageKey], options: [.skipsHiddenFiles])
         else { return }
-        let photoNames = Set(entries.filter { FileKind(url: $0) != nil }.map { $0.deletingPathExtension().lastPathComponent.lowercased() })
-        if !photoNames.isEmpty {
+        func names(_ kinds: Set<FileKind>) -> Set<String> {
+            Set(entries.filter { FileKind(url: $0).map(kinds.contains) == true }
+                .map { $0.deletingPathExtension().lastPathComponent.lowercased() })
+        }
+        let photos = names([.raw, .image])
+        let videos = names([.video]).subtracting(photos)
+        if !photos.isEmpty || !videos.isEmpty {
             let path = folder.path.dropFirst(root.path.count).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            results.append(ShootFolder(url: folder, path: path.isEmpty ? "/" : path, photoCount: photoNames.count))
+            results.append(ShootFolder(url: folder, path: path.isEmpty ? "/" : path, photoCount: photos.count, videoCount: videos.count))
             return
         }
         guard depth < maxDepth else { return }

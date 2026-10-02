@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 import CullDashCore
 
@@ -9,7 +10,9 @@ struct LoupeView: View {
         if let photo = store.selected {
             VStack(spacing: 0) {
                 Group {
-                    if store.zoomed {
+                    if photo.kind == .video {
+                        ClipPlayer(url: photo.primary).padding(16)
+                    } else if store.zoomed {
                         ZoomedImage(url: photo.primary)
                     } else {
                         PreviewImage(url: photo.primary, maxPixels: PreviewSize.full)
@@ -48,6 +51,23 @@ struct LoupeView: View {
                 _ = await PreviewImage.load(list[neighbour].primary, PreviewSize.full)
             }
         }
+    }
+}
+
+/// A video clip with the system's playback controls. It starts paused, so
+/// stepping through a card full of clips stays quiet.
+struct ClipPlayer: View {
+    let url: URL
+    @State private var player = AVPlayer()
+
+    var body: some View {
+        VideoPlayer(player: player)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.floatRadius))
+            .task(id: url) {
+                player.pause()
+                player.replaceCurrentItem(with: AVPlayerItem(url: url))
+            }
+            .onDisappear { player.pause() }
     }
 }
 

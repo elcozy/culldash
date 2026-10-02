@@ -34,7 +34,7 @@ struct EmptyStateView: View {
             Text("Choose a shoot")
                 .font(.system(size: 30, weight: .bold))
                 .tracking(-0.8)
-            Text("Pick a card or drive. Your RAWs stay where they are: nothing is imported or copied.")
+            Text("Pick a card, a drive or a folder on this Mac. Photos and videos stay where they are: nothing is imported or copied.")
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)

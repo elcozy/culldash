@@ -116,6 +116,17 @@ struct ThumbnailCell: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 140)
                 .opacity(photo.culling.flag == .reject ? 0.3 : 1)
+                .overlay(alignment: .bottomLeading) {
+                    if photo.kind == .video {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(6)
+                            .background(.black.opacity(0.55), in: Circle())
+                            .padding(6)
+                            .accessibilityLabel("Video")
+                    }
+                }
             HStack(spacing: 6) {
                 FlagMark(flag: photo.culling.flag)
                 StarsView(rating: photo.culling.rating, size: 9)

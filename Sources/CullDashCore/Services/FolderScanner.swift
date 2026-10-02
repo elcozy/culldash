@@ -29,7 +29,9 @@ public enum FolderScanner {
     /// The RAW leads when there is one; the camera JPEG rides along with it.
     static func makePhoto(_ files: [URL]) -> Photo? {
         let sorted = files.sorted { $0.lastPathComponent < $1.lastPathComponent }
-        guard let primary = sorted.first(where: { FileKind(url: $0) == .raw }) ?? sorted.first,
+        // A RAW leads its JPEG; a still leads the clip of an iPhone Live Photo.
+        guard let primary = sorted.first(where: { FileKind(url: $0) == .raw })
+            ?? sorted.first(where: { FileKind(url: $0) == .image }) ?? sorted.first,
             let kind = FileKind(url: primary)
         else { return nil }
         let modified = (try? primary.resourceValues(forKeys: [.contentModificationDateKey]))?

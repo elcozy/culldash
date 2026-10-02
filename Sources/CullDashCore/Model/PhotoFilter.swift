@@ -22,12 +22,14 @@ public enum KindFilter: String, CaseIterable, Hashable, Sendable {
     case all
     case raw
     case other
+    case video
 
     public var title: String {
         switch self {
         case .all: "All files"
         case .raw: "RAW only"
-        case .other: "JPEG and other"
+        case .other: "JPEG and other images"
+        case .video: "Videos"
         }
     }
 }
@@ -65,6 +67,7 @@ public struct PhotoFilter: Hashable, Sendable {
             case .all: true
             case .raw: photo.kind == .raw
             case .other: photo.kind == .image
+            case .video: photo.kind == .video
             }
         let query = search.trimmingCharacters(in: .whitespaces)
         let nameMatches = query.isEmpty || photo.allFiles.contains { $0.lastPathComponent.localizedCaseInsensitiveContains(query) }

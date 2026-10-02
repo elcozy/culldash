@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import ImageIO
 
@@ -11,6 +12,8 @@ public struct ExposureInfo: Hashable, Sendable {
     public var iso: Int?
     /// When the shutter fired, to the hundredth of a second when the camera records it.
     public var captured: Date?
+    /// Length of a video clip, in seconds.
+    public var duration: Double?
 
     public init(
         camera: String? = nil, lens: String? = nil, focalLength: Double? = nil,
@@ -26,6 +29,7 @@ public struct ExposureInfo: Hashable, Sendable {
     }
 
     public static func read(_ url: URL) -> ExposureInfo {
+        if FileKind(url: url) == .video { return readVideo(url) }
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
             let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         else { return ExposureInfo() }
@@ -44,9 +48,31 @@ public struct ExposureInfo: Hashable, Sendable {
         )
     }
 
+    /// A clip's length and size; waited for here, since callers are off the main thread.
+    static func readVideo(_ url: URL) -> ExposureInfo {
+        let asset = AVURLAsset(url: url)
+        let box = DurationBox()
+        let done = DispatchSemaphore(value: 0)
+        Task.detached {
+            box.seconds = try? await asset.load(.duration).seconds
+            done.signal()
+        }
+        done.wait()
+        var info = ExposureInfo()
+        info.duration = box.seconds
+        return info
+    }
+
+    /// "1:05" for a clip of 65 seconds.
+    public static func formatDuration(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
     /// "ƒ/2.8", "1/160 s", "ISO 400", "25 mm", leaving out what the file lacks.
     public var settings: [String] {
         var parts: [String] = []
+        if let duration { parts.append(Self.formatDuration(duration)) }
         if let aperture { parts.append("ƒ/" + Self.trim(aperture)) }
         if let shutter { parts.append(Self.formatShutter(shutter)) }
         if let iso { parts.append("ISO \(iso)") }
@@ -78,4 +104,9 @@ public struct ExposureInfo: Hashable, Sendable {
     static func trim(_ value: Double) -> String {
         value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
     }
+}
+
+/// Carries a clip's length out of an async load; written once, read after the wait.
+private final class DurationBox: @unchecked Sendable {
+    var seconds: Double?
 }

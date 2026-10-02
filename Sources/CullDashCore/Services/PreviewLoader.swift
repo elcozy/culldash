@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import ImageIO
 
@@ -27,6 +28,11 @@ public final class PreviewLoader: @unchecked Sendable {
     public func preview(for url: URL, maxPixels: Int) -> CGImage? {
         let key = key(url, maxPixels)
         if let hit = previews.object(forKey: key) { return hit }
+        if FileKind(url: url) == .video {
+            guard let frame = Self.videoFrame(url, maxPixels) else { return nil }
+            previews.setObject(frame, forKey: key, cost: frame.bytesPerRow * frame.height)
+            return frame
+        }
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         // The stored preview first: big in RAW files, so this is the fast path.
         // JPEGs (and some RAWs) only store a 160 px thumbnail, which would
@@ -38,6 +44,23 @@ public final class PreviewLoader: @unchecked Sendable {
         guard let image else { return nil }
         previews.setObject(image, forKey: key, cost: image.bytesPerRow * image.height)
         return image
+    }
+
+    /// A frame a second into the clip (or its first frame if shorter),
+    /// waited for here because callers are already off the main thread.
+    static func videoFrame(_ url: URL, _ maxPixels: Int) -> CGImage? {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: maxPixels, height: maxPixels)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 1, preferredTimescale: 600)
+        let box = FrameBox()
+        let done = DispatchSemaphore(value: 0)
+        generator.generateCGImageAsynchronously(for: CMTime(seconds: 1, preferredTimescale: 600)) { image, _, _ in
+            box.image = image
+            done.signal()
+        }
+        done.wait()
+        return box.image
     }
 
     private func thumbnail(_ source: CGImageSource, _ maxPixels: Int, decodeAlways: Bool) -> CGImage? {
@@ -69,4 +92,10 @@ public final class PreviewLoader: @unchecked Sendable {
     private func key(_ url: URL, _ maxPixels: Int) -> NSString {
         "\(url.path)#\(maxPixels)" as NSString
     }
+}
+
+/// Carries a frame out of AVFoundation's callback; written once, then read
+/// after the semaphore, so it is never touched by two threads at once.
+private final class FrameBox: @unchecked Sendable {
+    var image: CGImage?
 }
