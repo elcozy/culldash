@@ -12,13 +12,14 @@ enum Theme {
     static let muted = Color(hex: 0xafafaf)
     static let subtle = Color(hex: 0x757575)
 
-    /// The single accent: primary action, selection, picks.
-    static let accent = Color(hex: 0x9fe870)
+    /// The single accent (Apple system blue): primary action, selection, focus.
+    static let accent = Color(hex: 0x0a84ff)
     /// Text drawn on the accent.
-    static let onAccent = Color(hex: 0x163300)
+    static let onAccent = Color.white
+    /// Keepers. Green for its meaning, not as decoration.
+    static let positive = Color(hex: 0x30d158)
     static let negative = Color(hex: 0xff6b57)
     static let warning = Color(hex: 0xffc043)
-    static let info = Color(hex: 0x5b91f5)
     static let purple = Color(hex: 0xb18cf7)
 
     static let controlRadius: CGFloat = 8
@@ -29,8 +30,8 @@ enum Theme {
         case .none: nil
         case .red: negative
         case .yellow: warning
-        case .green: accent
-        case .blue: info
+        case .green: positive
+        case .blue: accent
         case .purple: purple
         }
     }

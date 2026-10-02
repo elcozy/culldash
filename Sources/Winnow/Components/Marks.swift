@@ -26,7 +26,7 @@ struct FlagMark: View {
     var body: some View {
         switch flag {
         case .pick:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent).font(.system(size: size))
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.positive).font(.system(size: size))
                 .accessibilityLabel("Pick")
         case .reject:
             Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.negative).font(.system(size: size))

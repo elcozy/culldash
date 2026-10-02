@@ -28,12 +28,12 @@ final class LibraryStore {
     /// same photo can never land in the wrong order.
     private var lastSave: Task<Void, Never>?
 
-    var visible: [Photo] { photos.filter { filter.matches($0.culling) } }
+    var visible: [Photo] { photos.filter { filter.matches($0) } }
     var selected: Photo? { photos.first { $0.id == selectedID } }
     var selectedIndex: Int? { visible.firstIndex { $0.id == selectedID } }
 
     func count(_ flag: FlagFilter) -> Int {
-        photos.filter { PhotoFilter(flag: flag, minStars: filter.minStars).matches($0.culling) }.count
+        photos.filter { PhotoFilter(flag: flag, minStars: filter.minStars, kind: filter.kind).matches($0) }.count
     }
 
     // MARK: Folder
@@ -62,6 +62,16 @@ final class LibraryStore {
         } catch {
             errorMessage = "Couldn't open \(url.lastPathComponent): \(error.localizedDescription)"
         }
+    }
+
+    /// Back to the list of drives.
+    func closeFolder() async {
+        await flushSaves()
+        folder = nil
+        photos = []
+        selectedID = nil
+        mode = .grid
+        zoomed = false
     }
 
     // MARK: Moving around

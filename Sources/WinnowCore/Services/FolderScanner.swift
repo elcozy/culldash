@@ -4,16 +4,24 @@ import Foundation
 /// name and reading any XMP sidecar already beside them.
 public enum FolderScanner {
     public static func scan(_ folder: URL) throws -> [Photo] {
-        // `.skipsHiddenFiles` also drops the `._DSC01850.ARW` files macOS
-        // leaves on exFAT drives, which are metadata, not photos.
-        let urls = try FileManager.default.contentsOfDirectory(
-            at: folder,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        )
+        try scan([folder])
+    }
+
+    /// Several folders as one shoot, e.g. every `DCIM/1xxMSDCF` on a card.
+    public static func scan(_ folders: [URL]) throws -> [Photo] {
         var groups: [String: [URL]] = [:]
-        for url in urls where FileKind(url: url) != nil {
-            groups[url.deletingPathExtension().lastPathComponent.lowercased(), default: []].append(url)
+        for folder in folders {
+            // `.skipsHiddenFiles` also drops the `._DSC01850.ARW` files macOS
+            // leaves on exFAT drives, which are metadata, not photos.
+            let urls = try FileManager.default.contentsOfDirectory(
+                at: folder,
+                includingPropertiesForKeys: [.contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            )
+            // Keyed by full path, since cameras reuse names across folders.
+            for url in urls where FileKind(url: url) != nil {
+                groups[url.deletingPathExtension().path.lowercased(), default: []].append(url)
+            }
         }
         return groups.values.compactMap(makePhoto).sorted(by: captureOrder)
     }
@@ -39,7 +47,7 @@ public enum FolderScanner {
     /// Cameras stamp each file when it is shot and copying keeps that date, so
     /// sorting by it interleaves frames from two cameras in the order they
     /// were taken. The name breaks ties within a burst.
-    static func captureOrder(_ a: Photo, _ b: Photo) -> Bool {
+    public static func captureOrder(_ a: Photo, _ b: Photo) -> Bool {
         if a.modified != b.modified { return a.modified < b.modified }
         return a.name.localizedStandardCompare(b.name) == .orderedAscending
     }

@@ -9,6 +9,10 @@ struct TopBar: View {
     var body: some View {
         @Bindable var store = store
         HStack(spacing: 12) {
+            IconButton(symbol: "externaldrive", help: "Back to drives") {
+                Task { await store.closeFolder() }
+            }
+
             Button {
                 store.chooseFolder()
             } label: {
