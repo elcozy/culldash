@@ -47,3 +47,16 @@ struct LabelDot: View {
         }
     }
 }
+
+/// The Winnow logo at any size, drawn by the same code as the app icon.
+struct LogoMark: View {
+    var size: CGFloat = 22
+
+    var body: some View {
+        Canvas { context, canvas in
+            context.withCGContext { LogoDrawing.draw(in: $0, size: canvas.width) }
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Winnow")
+    }
+}

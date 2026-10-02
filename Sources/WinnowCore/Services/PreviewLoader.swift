@@ -28,15 +28,26 @@ public final class PreviewLoader: @unchecked Sendable {
         let key = key(url, maxPixels)
         if let hit = previews.object(forKey: key) { return hit }
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        // The stored preview first: big in RAW files, so this is the fast path.
+        // JPEGs (and some RAWs) only store a 160 px thumbnail, which would
+        // look pixelated, so then the picture itself is decoded at the size asked.
+        var image = thumbnail(source, maxPixels, decodeAlways: false)
+        if let found = image, max(found.width, found.height) < min(maxPixels, 1200) * 9 / 10 {
+            image = thumbnail(source, maxPixels, decodeAlways: true) ?? found
+        }
+        guard let image else { return nil }
+        previews.setObject(image, forKey: key, cost: image.bytesPerRow * image.height)
+        return image
+    }
+
+    private func thumbnail(_ source: CGImageSource, _ maxPixels: Int, decodeAlways: Bool) -> CGImage? {
         let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+            decodeAlways ? kCGImageSourceCreateThumbnailFromImageAlways : kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixels,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
         ]
-        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
-        previews.setObject(image, forKey: key, cost: image.bytesPerRow * image.height)
-        return image
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     /// The whole RAW decoded at full size, for checking focus at 100%.

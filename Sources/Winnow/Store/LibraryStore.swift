@@ -29,6 +29,8 @@ final class LibraryStore {
     var errorMessage: String?
     /// A short message at the bottom of the window, e.g. after a trash.
     var notice: String?
+    /// Bumped by ⌘F; the top bar focuses its search field when it changes.
+    var searchRequests = 0
 
     /// Each trash, newest last, so ⌘Z can put photos back.
     var trashHistory: [[TrashedPhoto]] = []
@@ -50,7 +52,7 @@ final class LibraryStore {
     var selectedIndex: Int? { visible.firstIndex { $0.id == selectedID } }
 
     func count(_ flag: FlagFilter) -> Int {
-        photos.filter { PhotoFilter(flag: flag, minStars: filter.minStars, kind: filter.kind).matches($0) }.count
+        photos.filter { PhotoFilter(flag: flag, minStars: filter.minStars, kind: filter.kind, search: filter.search).matches($0) }.count
     }
 
     // MARK: Opening

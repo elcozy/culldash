@@ -46,6 +46,7 @@ build_app() {
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
     cp "$OUT/Winnow" "$app/Contents/MacOS/Winnow"
     cp Resources/Info.plist "$app/Contents/Info.plist"
+    cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
     # Ad-hoc signature: enough to run on this Mac. Release builds are signed
     # with a Developer ID and notarized instead.
     codesign --force --sign - "$app"

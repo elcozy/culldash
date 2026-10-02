@@ -12,7 +12,8 @@ import WinnowCore
 @MainActor
 enum KeyCommands {
     static func handle(_ event: NSEvent, store: LibraryStore) -> Bool {
-        guard store.folder != nil,
+        // Typing in the search field must not flag photos.
+        guard store.folder != nil, !(NSApp.keyWindow?.firstResponder is NSText),
             event.modifierFlags.intersection([.command, .control, .option]).isEmpty
         else { return false }
 

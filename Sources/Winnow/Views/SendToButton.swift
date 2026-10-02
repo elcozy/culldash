@@ -14,8 +14,9 @@ struct SendToButton: View {
             editors = store.visible.first.map { EditorLauncher.editors(for: $0.primary) } ?? []
             open.toggle()
         } label: {
-            Label("Send \(store.visible.count) to…", systemImage: "arrow.up.forward.app")
+            Label("Send \(store.visible.count)", systemImage: "arrow.up.forward.app")
         }
+        .fixedSize()
         .buttonStyle(ToneButtonStyle(.primary))
         .disabled(store.visible.isEmpty)
         .help("Open the photos shown here in an editor. Stars and labels go with them.")

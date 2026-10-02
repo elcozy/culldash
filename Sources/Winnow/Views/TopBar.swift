@@ -1,111 +1,82 @@
 import SwiftUI
 import WinnowCore
 
-/// Folder, view, filters on the left; auto-advance and the hand-offs on the right.
+/// The window's top, in place of the standard title bar: the logo and the
+/// shoot's name on the left, search in the middle, Send on the right.
+/// Everything else lives one layer down, in `ToolStrip`.
 struct TopBar: View {
     @Environment(LibraryStore.self) private var store
-    @State private var confirmTrash = false
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         @Bindable var store = store
-        HStack(spacing: 12) {
-            IconButton(symbol: "externaldrive", help: "Back to drives") {
-                Task { await store.closeFolder() }
-            }
-
-            Button {
-                store.chooseFolder()
-            } label: {
-                Label(store.folder?.lastPathComponent ?? "Open", systemImage: "folder")
-                    .lineLimit(1)
-            }
-            .buttonStyle(ToneButtonStyle(.ghost))
-            .help("Open another folder (⌘O)")
-
-            HStack(spacing: 2) {
-                IconButton(symbol: "square.grid.2x2", help: "Grid (Space)", active: store.mode == .grid) {
-                    store.mode = .grid
-                }
-                IconButton(symbol: "rectangle", help: "One photo (Space)", active: store.mode == .loupe) {
-                    store.mode = .loupe
-                }
-            }
-
-            Segmented(
-                options: FlagFilter.allCases,
-                selection: $store.filter.flag,
-                title: \.title,
-                count: { store.count($0) }
-            )
-
-            Menu {
-                Picker("Rating", selection: $store.filter.minStars) {
-                    ForEach(0...5, id: \.self) { stars in
-                        Text(stars == 0 ? "Any rating" : "\(stars)★ and up").tag(stars)
+        ZStack {
+            HStack(spacing: 10) {
+                Button {
+                    Task { await store.closeFolder() }
+                } label: {
+                    HStack(spacing: 8) {
+                        LogoMark(size: 22)
+                        Text(store.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
+                    .contentShape(Rectangle())
                 }
-                .pickerStyle(.inline)
-                Picker("Files", selection: $store.filter.kind) {
-                    ForEach(KindFilter.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.inline)
-            } label: {
-                Text(store.filter.extraCount == 0 ? "Filters" : "Filters · \(store.filter.extraCount)")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Filter by stars, or show only RAW or only JPEG files")
+                .buttonStyle(.plain)
+                .frame(maxWidth: 220, alignment: .leading)
+                .help("Back to your drives")
 
-            Button {
-                store.groupBursts.toggle()
-            } label: {
-                HStack(spacing: 6) {
-                    if let progress = store.burstProgress {
-                        ProgressView(value: progress).progressViewStyle(.circular).controlSize(.mini)
-                    } else {
-                        Image(systemName: "square.stack.3d.down.right")
-                    }
-                    Text("Similar")
-                }
-                .font(.system(size: 12, weight: .semibold))
-                .padding(.horizontal, 10)
-                .frame(height: 28)
-                .foregroundStyle(store.groupBursts ? Theme.onAccent : Theme.text)
-                .background(store.groupBursts ? Theme.accent : Theme.raised, in: RoundedRectangle(cornerRadius: Theme.controlRadius))
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Group bursts and re-takes of the same shot, so you can keep one and reject the rest")
+                Spacer()
 
-            Spacer(minLength: 8)
-
-            Toggle("Auto-advance", isOn: $store.autoAdvance)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .tint(Theme.accent)
-                .font(.system(size: 12))
-                .foregroundStyle(Theme.muted)
-                .help("Go to the next photo after a flag or rating")
-
-            Button {
-                confirmTrash = true
-            } label: {
-                Label("Trash \(store.rejectCount) rejects", systemImage: "trash")
-            }
-            .buttonStyle(ToneButtonStyle(.danger))
-            .disabled(store.rejectCount == 0)
-            .confirmationDialog(
-                "Move \(store.rejectCount) rejects to the Trash?",
-                isPresented: $confirmTrash
-            ) {
-                Button("Move to Trash", role: .destructive) { Task { await store.trashRejects() } }
-            } message: {
-                Text("Their RAW, JPEG and XMP files go to the Trash on that drive, where you can still restore them.")
+                SendToButton()
             }
 
-            SendToButton()
+            SearchField(text: $store.filter.search, focused: $searchFocused)
+                .frame(width: 280)
+                .onChange(of: store.searchRequests) { searchFocused = true }
         }
-        .padding(.horizontal, 12)
-        .frame(height: 52)
+        .padding(.leading, trafficLightInset)
+        .padding(.trailing, 12)
+        .frame(height: topBarHeight)
+    }
+}
+
+/// Search by file name. Esc clears it and hands the keys back to culling.
+private struct SearchField: View {
+    @Binding var text: String
+    var focused: FocusState<Bool>.Binding
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(Theme.subtle)
+            TextField("Search photos by name", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .focused(focused)
+                .onExitCommand {
+                    text = ""
+                    focused.wrappedValue = false
+                }
+            if text.isEmpty {
+                Text("⌘F").font(.system(size: 11)).foregroundStyle(Theme.subtle)
+            } else {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.subtle)
+                }
+                .buttonStyle(.plain)
+                .help("Clear the search")
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.controlRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.controlRadius)
+                .strokeBorder(focused.wrappedValue ? Theme.accent : .clear, lineWidth: 1.5)
+        )
     }
 }

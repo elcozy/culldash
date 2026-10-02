@@ -19,11 +19,19 @@ struct WinnowApp: App {
                 .preferredColorScheme(.dark)
                 .frame(minWidth: 960, minHeight: 620)
                 .navigationTitle(store.title)
+                .background(WindowChrome())
+                .ignoresSafeArea(edges: .top)
         }
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Open Folder…") { store.chooseFolder() }
                     .keyboardShortcut("o")
+            }
+            CommandGroup(after: .textEditing) {
+                Button("Search Photos") { store.searchRequests += 1 }
+                    .keyboardShortcut("f")
+                    .disabled(store.folder == nil)
             }
             CommandGroup(replacing: .undoRedo) {
                 Button("Undo Move to Trash") { Task { await store.undoTrash() } }

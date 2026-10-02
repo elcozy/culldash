@@ -10,7 +10,11 @@ struct ContentView: View {
             if store.folder != nil {
                 TopBar()
                 Rectangle().fill(Theme.hairline).frame(height: 1)
+                ToolStrip()
+            } else {
+                StartBar()
             }
+            Rectangle().fill(Theme.hairline).frame(height: 1)
             Group {
                 if store.folder == nil {
                     EmptyStateView()
@@ -52,6 +56,20 @@ struct ContentView: View {
         } message: {
             Text(store.errorMessage ?? "")
         }
+    }
+}
+
+/// The start screen's top: the window buttons and the name, nothing else.
+private struct StartBar: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            LogoMark(size: 22)
+            Text("Winnow").font(.system(size: 13, weight: .bold)).tracking(-0.2)
+            Text("Cull RAW shoots fast").font(.system(size: 12)).foregroundStyle(Theme.subtle)
+            Spacer()
+        }
+        .padding(.leading, trafficLightInset)
+        .frame(height: topBarHeight)
     }
 }
 

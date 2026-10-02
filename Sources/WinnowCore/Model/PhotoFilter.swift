@@ -1,3 +1,5 @@
+import Foundation
+
 /// Which flags are shown.
 public enum FlagFilter: String, CaseIterable, Hashable, Sendable {
     case all
@@ -36,11 +38,14 @@ public struct PhotoFilter: Hashable, Sendable {
     /// Only photos with at least this many stars; 0 shows every rating.
     public var minStars: Int
     public var kind: KindFilter
+    /// Part of a file name, e.g. "01612" or "DSCF"; empty matches everything.
+    public var search: String
 
-    public init(flag: FlagFilter = .all, minStars: Int = 0, kind: KindFilter = .all) {
+    public init(flag: FlagFilter = .all, minStars: Int = 0, kind: KindFilter = .all, search: String = "") {
         self.flag = flag
         self.minStars = minStars
         self.kind = kind
+        self.search = search
     }
 
     /// Anything narrower than "all files, any rating", for the Filters button's badge.
@@ -61,6 +66,8 @@ public struct PhotoFilter: Hashable, Sendable {
             case .raw: photo.kind == .raw
             case .other: photo.kind == .image
             }
-        return flagMatches && kindMatches && culling.rating >= minStars
+        let query = search.trimmingCharacters(in: .whitespaces)
+        let nameMatches = query.isEmpty || photo.allFiles.contains { $0.lastPathComponent.localizedCaseInsensitiveContains(query) }
+        return flagMatches && kindMatches && nameMatches && culling.rating >= minStars
     }
 }
