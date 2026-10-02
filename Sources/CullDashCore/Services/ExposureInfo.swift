@@ -14,6 +14,11 @@ public struct ExposureInfo: Hashable, Sendable {
     public var captured: Date?
     /// Length of a video clip, in seconds.
     public var duration: Double?
+    /// Where it was taken, when the camera or phone recorded GPS.
+    public var latitude: Double?
+    public var longitude: Double?
+    public var pixelWidth: Int?
+    public var pixelHeight: Int?
 
     public init(
         camera: String? = nil, lens: String? = nil, focalLength: Double? = nil,
@@ -35,7 +40,7 @@ public struct ExposureInfo: Hashable, Sendable {
         else { return ExposureInfo() }
         let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] ?? [:]
         let tiff = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any] ?? [:]
-        return ExposureInfo(
+        var info = ExposureInfo(
             camera: tiff[kCGImagePropertyTIFFModel] as? String,
             lens: exif[kCGImagePropertyExifLensModel] as? String,
             focalLength: exif[kCGImagePropertyExifFocalLength] as? Double,
@@ -46,6 +51,25 @@ public struct ExposureInfo: Hashable, Sendable {
                 exif[kCGImagePropertyExifDateTimeOriginal] as? String,
                 subseconds: exif[kCGImagePropertyExifSubsecTimeOriginal] as? String)
         )
+        info.pixelWidth = properties[kCGImagePropertyPixelWidth] as? Int
+        info.pixelHeight = properties[kCGImagePropertyPixelHeight] as? Int
+        if let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
+            let lat = gps[kCGImagePropertyGPSLatitude] as? Double,
+            let lon = gps[kCGImagePropertyGPSLongitude] as? Double
+        {
+            // EXIF stores positive degrees plus a hemisphere letter.
+            info.latitude = (gps[kCGImagePropertyGPSLatitudeRef] as? String) == "S" ? -lat : lat
+            info.longitude = (gps[kCGImagePropertyGPSLongitudeRef] as? String) == "W" ? -lon : lon
+        }
+        return info
+    }
+
+    /// "51.5072° N, 0.1276° W", for when no place name can be looked up.
+    public var coordinates: String? {
+        guard let latitude, let longitude else { return nil }
+        return String(
+            format: "%.4f° %@, %.4f° %@", abs(latitude), latitude >= 0 ? "N" : "S",
+            abs(longitude), longitude >= 0 ? "E" : "W")
     }
 
     /// A clip's length and size; waited for here, since callers are off the main thread.

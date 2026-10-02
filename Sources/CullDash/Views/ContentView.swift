@@ -15,18 +15,24 @@ struct ContentView: View {
                 StartBar()
             }
             Rectangle().fill(Theme.hairline).frame(height: 1)
-            Group {
-                if store.folder == nil {
-                    EmptyStateView()
-                } else if store.visible.isEmpty {
-                    NoMatchesView()
-                } else if store.mode == .grid {
-                    PhotoGrid()
-                } else {
-                    LoupeView()
+            HStack(spacing: 0) {
+                Group {
+                    if store.folder == nil {
+                        EmptyStateView()
+                    } else if store.visible.isEmpty {
+                        NoMatchesView()
+                    } else if store.mode == .grid {
+                        PhotoGrid()
+                    } else {
+                        LoupeView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if store.showInspector && store.folder != nil {
+                    InspectorView().transition(.move(edge: .trailing))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeOut(duration: 0.18), value: store.showInspector)
             if store.folder != nil {
                 Rectangle().fill(Theme.hairline).frame(height: 1)
                 HintBar()

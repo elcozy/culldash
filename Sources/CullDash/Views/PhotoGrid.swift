@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import CullDashCore
 
@@ -42,13 +43,15 @@ struct PhotoGrid: View {
 
 extension PhotoGrid {
     private func cell(_ photo: Photo) -> some View {
-        ThumbnailCell(photo: photo, selected: photo.id == store.selectedID)
+        ThumbnailCell(photo: photo, selected: store.selectedIDs.contains(photo.id))
             .id(photo.id)
             .onTapGesture(count: 2) {
+                store.extraSelection = []
                 store.selectedID = photo.id
                 store.mode = .loupe
             }
-            .onTapGesture { store.selectedID = photo.id }
+            .onTapGesture { store.click(photo.id) }
+            .contextMenu { PhotoMenu(photo: photo) }
     }
 
     /// The photos in order, cut into sections: each group of similar shots
@@ -69,6 +72,38 @@ extension PhotoGrid {
             }
         }
         return result
+    }
+}
+
+/// Right-click on a thumbnail. Acts on the whole selection when the photo
+/// is part of it, otherwise on that photo alone.
+private struct PhotoMenu: View {
+    @Environment(LibraryStore.self) private var store
+    let photo: Photo
+
+    var body: some View {
+        let count = store.selectedIDs.contains(photo.id) ? store.selectedIDs.count : 1
+        Button("Get Info") {
+            focus()
+            store.showInspector = true
+        }
+        Divider()
+        Button(count > 1 ? "Pick \(count) Photos" : "Pick") { focus(); store.setFlag(.pick) }
+        Button(count > 1 ? "Reject \(count) Photos" : "Reject") { focus(); store.setFlag(.reject) }
+        Button("Clear Flag") { focus(); store.setFlag(.none) }
+        Divider()
+        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([photo.primary]) }
+        Button(count > 1 ? "Move \(count) to Trash" : "Move to Trash", role: .destructive) {
+            focus()
+            Task { await store.trashSelected() }
+        }
+    }
+
+    /// Right-clicking outside the selection makes that photo the selection.
+    private func focus() {
+        guard !store.selectedIDs.contains(photo.id) else { return }
+        store.extraSelection = []
+        store.selectedID = photo.id
     }
 }
 

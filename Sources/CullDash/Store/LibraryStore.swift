@@ -19,7 +19,12 @@ final class LibraryStore {
     private(set) var title = "CullDash"
     var photos: [Photo] = []
     var filter = PhotoFilter() { didSet { keepSelectionVisible() } }
+    /// The photo in focus: shown full screen, moved by the arrow keys.
     var selectedID: Photo.ID?
+    /// Extra photos picked with ⇧- or ⌘-click; decisions apply to all of them.
+    var extraSelection: Set<Photo.ID> = []
+    /// The details column on the right.
+    var showInspector = false
     var mode: ViewMode = .grid
     var zoomed = false
     /// Move to the next photo after a flag or rating, so culling is one key per frame.
@@ -48,6 +53,12 @@ final class LibraryStore {
     private var noticeTask: Task<Void, Never>?
 
     var visible: [Photo] { photos.filter { filter.matches($0) } }
+
+    /// Every selected photo: the focused one plus any ⇧/⌘-clicked ones.
+    var selectedIDs: Set<Photo.ID> {
+        guard let selectedID else { return extraSelection }
+        return extraSelection.union([selectedID])
+    }
     var selected: Photo? { photos.first { $0.id == selectedID } }
     var selectedIndex: Int? { visible.firstIndex { $0.id == selectedID } }
 
@@ -81,6 +92,7 @@ final class LibraryStore {
             self.title = title
             photos = found
             filter = PhotoFilter()
+            extraSelection = []
             selectedID = found.first?.id
             mode = .grid
             zoomed = false
@@ -120,34 +132,6 @@ final class LibraryStore {
         }
     }
 
-    // MARK: Moving around
-
-    func move(by offset: Int) {
-        let list = visible
-        guard !list.isEmpty else { return }
-        let index = selectedIndex ?? 0
-        selectedID = list[min(max(index + offset, 0), list.count - 1)].id
-        zoomed = false
-    }
-
-    func moveRow(_ direction: Int) {
-        move(by: mode == .grid ? direction * gridColumns : direction)
-    }
-
-    func toggleMode() {
-        mode = mode == .grid ? .loupe : .grid
-        zoomed = false
-    }
-
-    func toggleZoom() {
-        if mode == .grid { mode = .loupe }
-        zoomed.toggle()
-    }
-
-    func back() {
-        if zoomed { zoomed = false } else { mode = .grid }
-    }
-
     // MARK: Decisions
 
     func setFlag(_ flag: Flag) { update(advance: true) { $0.flag = flag } }
@@ -165,6 +149,12 @@ final class LibraryStore {
     }
 
     func update(advance: Bool, _ change: (inout Culling) -> Void) {
+        // Several selected: change them all and stay put.
+        if extraSelection.count > 0 {
+            apply(to: selectedIDs, change)
+            show("Changed \(selectedIDs.count) photos")
+            return
+        }
         guard let id = selectedID else { return }
         let position = selectedIndex ?? 0
         apply(to: [id], change)

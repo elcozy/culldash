@@ -23,7 +23,8 @@ enum KeyCommands {
         case 126: store.moveRow(-1)
         case 125: store.moveRow(1)
         case 36, 76, 49: store.toggleMode()
-        case 53: store.back()
+        case 53:
+            if store.extraSelection.isEmpty { store.back() } else { store.clearSelection() }
         case 51, 117: Task { await store.trashSelected() }
         default: return handleCharacter(event.charactersIgnoringModifiers?.lowercased().first, store: store)
         }
@@ -39,6 +40,7 @@ enum KeyCommands {
         case "z": store.toggleZoom()
         case "g": store.mode = .grid
         case "r": store.rejectRestOfBurst()
+        case "i": store.showInspector.toggle()
         default:
             guard let digit = character.wholeNumberValue else { return false }
             if digit <= 5 {

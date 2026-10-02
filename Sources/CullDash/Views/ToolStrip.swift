@@ -33,6 +33,17 @@ struct ToolStrip: View {
 
             Spacer(minLength: 8)
 
+            if store.selectedIDs.count > 1 {
+                Text("\(store.selectedIDs.count) selected").font(.system(size: 12, weight: .semibold))
+                Button("Clear") { store.clearSelection() }
+                    .buttonStyle(ToneButtonStyle(.ghost))
+                    .help("Select just one photo again (Esc)")
+            }
+
+            IconButton(symbol: "info.circle", help: "Info (I)", active: store.showInspector) {
+                store.showInspector.toggle()
+            }
+
             Button {
                 confirmTrash = true
             } label: {

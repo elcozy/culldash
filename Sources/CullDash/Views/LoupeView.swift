@@ -107,6 +107,7 @@ struct PhotoInfoBar: View {
     let position: Int
     let total: Int
     @State private var exposure = ExposureInfo()
+    @State private var place: String?
 
     var body: some View {
         HStack(spacing: 16) {
@@ -115,6 +116,12 @@ struct PhotoInfoBar: View {
             StarsView(rating: photo.culling.rating, size: 12)
             LabelDot(label: photo.culling.label)
             Spacer()
+            Text(exposure.captured.map { $0.formatted(date: .abbreviated, time: .shortened) }
+                ?? photo.modified.formatted(date: .abbreviated, time: .shortened))
+                .help(exposure.captured == nil ? "File date: this file has no capture date" : "Date taken")
+            if let place = place ?? exposure.coordinates {
+                Label(place, systemImage: "mappin.and.ellipse").lineLimit(1)
+            }
             ForEach(exposure.settings, id: \.self) { Text($0) }
             if let lens = exposure.lens { Text(lens).foregroundStyle(Theme.subtle) }
             if let camera = exposure.camera { Text(camera).foregroundStyle(Theme.subtle) }
@@ -126,7 +133,11 @@ struct PhotoInfoBar: View {
         .frame(height: 40)
         .task(id: photo.id) {
             let url = photo.primary
+            place = nil
             exposure = await Task.detached(priority: .utility) { ExposureInfo.read(url) }.value
+            if let latitude = exposure.latitude, let longitude = exposure.longitude {
+                place = await PlaceNames.shared.name(latitude: latitude, longitude: longitude)
+            }
         }
     }
 }

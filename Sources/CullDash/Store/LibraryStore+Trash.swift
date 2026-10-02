@@ -13,11 +13,13 @@ extension LibraryStore {
     var rejectCount: Int { photos.filter { $0.culling.flag == .reject }.count }
     var canUndoTrash: Bool { !trashHistory.isEmpty }
 
-    /// Delete key: the photo in view goes to the Trash now; the next slides in.
+    /// Delete key: the selected photos go to the Trash now; the next slides in.
     func trashSelected() async {
-        guard let photo = selected else { return }
+        let targets = photos.filter { selectedIDs.contains($0.id) }
+        guard !targets.isEmpty else { return }
         let position = selectedIndex ?? 0
-        await trash([photo])
+        extraSelection = []
+        await trash(targets)
         let list = visible
         selectedID = list.isEmpty ? nil : list[min(position, list.count - 1)].id
         zoomed = false

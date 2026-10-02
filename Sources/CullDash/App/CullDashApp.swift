@@ -36,6 +36,16 @@ struct CullDashApp: App {
                 Button("Open Folder…") { store.chooseFolder() }
                     .keyboardShortcut("o")
             }
+            CommandGroup(replacing: .pasteboard) {
+                Button("Select All Photos") { store.selectAll() }
+                    .keyboardShortcut("a")
+                    .disabled(store.folder == nil)
+            }
+            CommandGroup(after: .sidebar) {
+                Button(store.showInspector ? "Hide Info" : "Show Info") { store.showInspector.toggle() }
+                    .keyboardShortcut("i")
+                    .disabled(store.folder == nil)
+            }
             CommandGroup(after: .textEditing) {
                 Button("Search Photos") { store.searchRequests += 1 }
                     .keyboardShortcut("f")
