@@ -8,12 +8,16 @@ enum ViewMode {
     case loupe
 }
 
-/// Holds the open folder, its photos and the selection, and saves every
-/// decision to the photo's XMP sidecar in the background.
+/// Holds the open shoot, its photos and the selection, and saves every
+/// decision to the photo's XMP sidecar in the background. Trashing and
+/// burst grouping live in their own extensions beside this file.
 @MainActor @Observable
 final class LibraryStore {
+    /// The folder or drive the shoot came from; nil on the start screen.
     private(set) var folder: URL?
-    private(set) var photos: [Photo] = []
+    /// "winnow-test", or a drive's name when the whole drive is open.
+    private(set) var title = "Winnow"
+    var photos: [Photo] = []
     var filter = PhotoFilter() { didSet { keepSelectionVisible() } }
     var selectedID: Photo.ID?
     var mode: ViewMode = .grid
@@ -23,10 +27,23 @@ final class LibraryStore {
     /// Set by the grid so ↑ and ↓ move a whole row.
     var gridColumns = 1
     var errorMessage: String?
+    /// A short message at the bottom of the window, e.g. after a trash.
+    var notice: String?
+
+    /// Each trash, newest last, so ⌘Z can put photos back.
+    var trashHistory: [[TrashedPhoto]] = []
+    /// Burst grouping: on/off, the groups found, and progress while finding them.
+    var groupBursts = false { didSet { groupBurstsChanged() } }
+    var burstOf: [Photo.ID: Int] = [:]
+    var burstMembers: [Int: [Photo.ID]] = [:]
+    var burstProgress: Double?
+    var burstTask: Task<Void, Never>?
 
     /// Sidecar writes run one after another, so two quick key presses on the
     /// same photo can never land in the wrong order.
     private var lastSave: Task<Void, Never>?
+    private var warmTask: Task<Void, Never>?
+    private var noticeTask: Task<Void, Never>?
 
     var visible: [Photo] { photos.filter { filter.matches($0) } }
     var selected: Photo? { photos.first { $0.id == selectedID } }
@@ -36,7 +53,7 @@ final class LibraryStore {
         photos.filter { PhotoFilter(flag: flag, minStars: filter.minStars, kind: filter.kind).matches($0) }.count
     }
 
-    // MARK: Folder
+    // MARK: Opening
 
     func chooseFolder() {
         let panel = NSOpenPanel()
@@ -50,28 +67,54 @@ final class LibraryStore {
     }
 
     func open(_ url: URL) async {
+        await open([url], root: url, title: url.lastPathComponent)
+    }
+
+    /// Several folders as one shoot, e.g. every photo folder on a card.
+    func open(_ folders: [URL], root: URL, title: String) async {
         await flushSaves()
         do {
-            let found = try await Task.detached(priority: .userInitiated) { try FolderScanner.scan(url) }.value
-            folder = url
+            let found = try await Task.detached(priority: .userInitiated) { try FolderScanner.scan(folders) }.value
+            folder = root
+            self.title = title
             photos = found
             filter = PhotoFilter()
             selectedID = found.first?.id
             mode = .grid
             zoomed = false
+            trashHistory = []
+            groupBursts = false
+            warmThumbnails()
         } catch {
-            errorMessage = "Couldn't open \(url.lastPathComponent): \(error.localizedDescription)"
+            errorMessage = "Couldn't open \(title): \(error.localizedDescription)"
         }
     }
 
     /// Back to the list of drives.
     func closeFolder() async {
         await flushSaves()
+        warmTask?.cancel()
+        burstTask?.cancel()
         folder = nil
+        title = "Winnow"
         photos = []
         selectedID = nil
         mode = .grid
         zoomed = false
+        groupBursts = false
+    }
+
+    /// Loads every thumbnail in the background, in order, so scrolling the
+    /// grid or coming back to it never waits on a spinner.
+    private func warmThumbnails() {
+        warmTask?.cancel()
+        let urls = photos.map(\.primary)
+        warmTask = Task.detached(priority: .utility) {
+            for url in urls {
+                if Task.isCancelled { return }
+                _ = PreviewLoader.shared.preview(for: url, maxPixels: PreviewSize.thumbnail)
+            }
+        }
     }
 
     // MARK: Moving around
@@ -118,11 +161,10 @@ final class LibraryStore {
         update(advance: false) { $0.label = $0.label == label ? .none : label }
     }
 
-    private func update(advance: Bool, _ change: (inout Culling) -> Void) {
-        guard let id = selectedID, let index = photos.firstIndex(where: { $0.id == id }) else { return }
+    func update(advance: Bool, _ change: (inout Culling) -> Void) {
+        guard let id = selectedID else { return }
         let position = selectedIndex ?? 0
-        change(&photos[index].culling)
-        save(photos[index])
+        apply(to: [id], change)
         let list = visible
         if let now = list.firstIndex(where: { $0.id == id }) {
             if autoAdvance && advance { selectedID = list[min(now + 1, list.count - 1)].id }
@@ -131,6 +173,14 @@ final class LibraryStore {
             selectedID = list.isEmpty ? nil : list[min(position, list.count - 1)].id
         }
         zoomed = false
+    }
+
+    /// Changes several photos at once and saves each one's sidecar.
+    func apply(to ids: Set<Photo.ID>, _ change: (inout Culling) -> Void) {
+        for index in photos.indices where ids.contains(photos[index].id) {
+            change(&photos[index].culling)
+            save(photos[index])
+        }
     }
 
     private func save(_ photo: Photo) {
@@ -151,26 +201,18 @@ final class LibraryStore {
 
     private func report(_ message: String) { errorMessage = message }
 
-    private func keepSelectionVisible() {
-        let list = visible
-        if !list.contains(where: { $0.id == selectedID }) { selectedID = list.first?.id }
+    func show(_ message: String) {
+        notice = message
+        noticeTask?.cancel()
+        noticeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            if !Task.isCancelled { self?.notice = nil }
+        }
     }
 
-    // MARK: Hand-offs
-
-    var rejectCount: Int { photos.filter { $0.culling.flag == .reject }.count }
-
-    /// Moves every reject's files to the Trash; anything that fails stays listed.
-    func trashRejects() async {
-        await flushSaves()
-        let rejects = photos.filter { $0.culling.flag == .reject }
-        let failed = await Task.detached(priority: .userInitiated) {
-            rejects.filter { (try? PhotoTrash.trash($0)) == nil }.map(\.id)
-        }.value
-        let kept = Set(failed)
-        photos.removeAll { $0.culling.flag == .reject && !kept.contains($0.id) }
-        keepSelectionVisible()
-        if !failed.isEmpty { errorMessage = "\(failed.count) rejects couldn't be moved to the Trash." }
+    func keepSelectionVisible() {
+        let list = visible
+        if !list.contains(where: { $0.id == selectedID }) { selectedID = list.first?.id }
     }
 
     /// Opens the photos shown in another app, after their sidecars are written
@@ -183,4 +225,11 @@ final class LibraryStore {
             errorMessage = "Couldn't open the photos in \(editor.name): \(error.localizedDescription)"
         }
     }
+}
+
+/// Preview sizes, in pixels on the long edge.
+enum PreviewSize {
+    static let thumbnail = 400
+    /// Larger than any embedded preview, so the camera's full preview is used.
+    static let full = 2560
 }

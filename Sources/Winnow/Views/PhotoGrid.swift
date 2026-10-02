@@ -16,14 +16,12 @@ struct PhotoGrid: View {
                         columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: columns),
                         spacing: spacing
                     ) {
-                        ForEach(store.visible) { photo in
-                            ThumbnailCell(photo: photo, selected: photo.id == store.selectedID)
-                                .id(photo.id)
-                                .onTapGesture(count: 2) {
-                                    store.selectedID = photo.id
-                                    store.mode = .loupe
-                                }
-                                .onTapGesture { store.selectedID = photo.id }
+                        ForEach(sections) { section in
+                            Section {
+                                ForEach(section.photos) { photo in cell(photo) }
+                            } header: {
+                                if let members = section.burst { BurstHeader(members: members) }
+                            }
                         }
                     }
                     .padding(16)
@@ -42,6 +40,71 @@ struct PhotoGrid: View {
     }
 }
 
+extension PhotoGrid {
+    private func cell(_ photo: Photo) -> some View {
+        ThumbnailCell(photo: photo, selected: photo.id == store.selectedID)
+            .id(photo.id)
+            .onTapGesture(count: 2) {
+                store.selectedID = photo.id
+                store.mode = .loupe
+            }
+            .onTapGesture { store.selectedID = photo.id }
+    }
+
+    /// The photos in order, cut into sections: each group of similar shots
+    /// on its own, the photos between them together. One section when
+    /// grouping is off.
+    private var sections: [GridSection] {
+        let list = store.visible
+        guard store.groupBursts, !store.burstMembers.isEmpty else {
+            return [GridSection(id: "all", burst: nil, photos: list)]
+        }
+        var result: [GridSection] = []
+        for photo in list {
+            let members = store.burst(of: photo.id)
+            if let last = result.last, last.burst == members {
+                result[result.count - 1].photos.append(photo)
+            } else {
+                result.append(GridSection(id: photo.id.path, burst: members, photos: [photo]))
+            }
+        }
+        return result
+    }
+}
+
+/// A run of photos in the grid: one burst, or the singles between bursts.
+struct GridSection: Identifiable {
+    let id: String
+    let burst: [Photo.ID]?
+    var photos: [Photo]
+}
+
+/// The line above a burst: how many frames, how many picked, and the
+/// one-click "keep the picks, reject the rest".
+private struct BurstHeader: View {
+    @Environment(LibraryStore.self) private var store
+    let members: [Photo.ID]
+
+    var body: some View {
+        let picks = store.photos.filter { members.contains($0.id) && $0.culling.flag == .pick }.count
+        HStack(spacing: 10) {
+            Image(systemName: "square.stack.3d.down.right").foregroundStyle(Theme.muted)
+            Text("Similar · \(members.count) photos").font(.system(size: 13, weight: .semibold))
+            Text(picks == 0 ? "pick your keepers with P" : "\(picks) picked")
+                .font(.system(size: 12))
+                .foregroundStyle(picks == 0 ? Theme.subtle : Theme.positive)
+            Spacer()
+            Button("Reject the rest") { store.rejectRest(of: members) }
+                .buttonStyle(ToneButtonStyle(.ghost))
+                .disabled(picks == 0)
+                .help("Reject every photo in this group that isn't picked (R)")
+        }
+        .padding(.top, 14)
+        .padding(.bottom, 4)
+        .overlay(alignment: .top) { Rectangle().fill(Theme.hairline).frame(height: 1) }
+    }
+}
+
 /// One thumbnail with its flag, stars and label under it. Rejects fade back.
 struct ThumbnailCell: View {
     let photo: Photo
@@ -49,7 +112,7 @@ struct ThumbnailCell: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            PreviewImage(url: photo.primary, maxPixels: 480)
+            PreviewImage(url: photo.primary, maxPixels: PreviewSize.thumbnail)
                 .frame(maxWidth: .infinity)
                 .frame(height: 140)
                 .opacity(photo.culling.flag == .reject ? 0.3 : 1)

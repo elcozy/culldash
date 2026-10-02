@@ -28,6 +28,7 @@ struct ContentView: View {
                 HintBar()
             }
         }
+        .overlay(alignment: .bottom) { NoticeView().padding(.bottom, 48) }
         .background(Theme.canvas)
         .foregroundStyle(Theme.text)
         .task {
@@ -67,11 +68,29 @@ private struct NoMatchesView: View {
     }
 }
 
+/// A short message that floats above the bottom bar for a few seconds.
+private struct NoticeView: View {
+    @Environment(LibraryStore.self) private var store
+
+    var body: some View {
+        if let notice = store.notice {
+            Text(notice)
+                .font(.system(size: 13, weight: .medium))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.floatRadius))
+                .overlay(RoundedRectangle(cornerRadius: Theme.floatRadius).strokeBorder(Theme.hairline))
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.easeOut(duration: 0.2), value: store.notice)
+        }
+    }
+}
+
 /// The keys, always in view, so nobody has to look them up.
 private struct HintBar: View {
     private let hints = [
         ("P", "pick"), ("X", "reject"), ("U", "clear"), ("1–5", "stars"), ("6–9", "label"),
-        ("Space", "view"), ("Z", "100%"), ("Esc", "back"),
+        ("Space", "view"), ("Z", "100%"), ("Del", "trash"), ("R", "reject rest"), ("Esc", "back"),
     ]
 
     var body: some View {

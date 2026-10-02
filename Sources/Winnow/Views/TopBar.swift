@@ -39,15 +39,43 @@ struct TopBar: View {
             )
 
             Menu {
-                ForEach(0...5, id: \.self) { stars in
-                    Button(stars == 0 ? "Any rating" : "\(stars)★ and up") { store.filter.minStars = stars }
+                Picker("Rating", selection: $store.filter.minStars) {
+                    ForEach(0...5, id: \.self) { stars in
+                        Text(stars == 0 ? "Any rating" : "\(stars)★ and up").tag(stars)
+                    }
                 }
+                .pickerStyle(.inline)
+                Picker("Files", selection: $store.filter.kind) {
+                    ForEach(KindFilter.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.inline)
             } label: {
-                Text(store.filter.minStars == 0 ? "Any ★" : "\(store.filter.minStars)★+")
+                Text(store.filter.extraCount == 0 ? "Filters" : "Filters · \(store.filter.extraCount)")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .help("Only show photos with at least this many stars")
+            .help("Filter by stars, or show only RAW or only JPEG files")
+
+            Button {
+                store.groupBursts.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    if let progress = store.burstProgress {
+                        ProgressView(value: progress).progressViewStyle(.circular).controlSize(.mini)
+                    } else {
+                        Image(systemName: "square.stack.3d.down.right")
+                    }
+                    Text("Similar")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .foregroundStyle(store.groupBursts ? Theme.onAccent : Theme.text)
+                .background(store.groupBursts ? Theme.accent : Theme.raised, in: RoundedRectangle(cornerRadius: Theme.controlRadius))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Group bursts and re-takes of the same shot, so you can keep one and reject the rest")
 
             Spacer(minLength: 8)
 

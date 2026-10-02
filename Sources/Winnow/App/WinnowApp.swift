@@ -18,12 +18,17 @@ struct WinnowApp: App {
                 .modifier(KeyCommandsModifier(store: store))
                 .preferredColorScheme(.dark)
                 .frame(minWidth: 960, minHeight: 620)
-                .navigationTitle(store.folder?.lastPathComponent ?? "Winnow")
+                .navigationTitle(store.title)
         }
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Open Folder…") { store.chooseFolder() }
                     .keyboardShortcut("o")
+            }
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo Move to Trash") { Task { await store.undoTrash() } }
+                    .keyboardShortcut("z")
+                    .disabled(!store.canUndoTrash)
             }
         }
     }

@@ -11,7 +11,7 @@ struct PreviewImage: View {
 
     var body: some View {
         ZStack {
-            if let shown = image ?? PreviewLoader.shared.cached(for: url, maxPixels: maxPixels) {
+            if let shown = image ?? PreviewImage.cached(url, maxPixels) {
                 Image(decorative: shown, scale: 1)
                     .resizable()
                     .interpolation(.high)
@@ -26,7 +26,7 @@ struct PreviewImage: View {
             }
         }
         .task(id: url) {
-            image = PreviewLoader.shared.cached(for: url, maxPixels: maxPixels)
+            image = PreviewImage.cached(url, maxPixels)
             failed = false
             guard image == nil else { return }
             let loaded = await PreviewImage.load(url, maxPixels)
@@ -34,6 +34,14 @@ struct PreviewImage: View {
             image = loaded?.image
             failed = loaded == nil
         }
+    }
+
+    /// The requested size if loaded, else the other size: a thumbnail can
+    /// stand in for the big preview for a moment, and the other way round.
+    static func cached(_ url: URL, _ maxPixels: Int) -> CGImage? {
+        let other = maxPixels == PreviewSize.full ? PreviewSize.thumbnail : PreviewSize.full
+        return PreviewLoader.shared.cached(for: url, maxPixels: maxPixels)
+            ?? PreviewLoader.shared.cached(for: url, maxPixels: other)
     }
 
     /// Loads in the background and fills the cache for the next look.

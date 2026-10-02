@@ -9,10 +9,12 @@ public struct ExposureInfo: Hashable, Sendable {
     public var aperture: Double?
     public var shutter: Double?
     public var iso: Int?
+    /// When the shutter fired, to the hundredth of a second when the camera records it.
+    public var captured: Date?
 
     public init(
         camera: String? = nil, lens: String? = nil, focalLength: Double? = nil,
-        aperture: Double? = nil, shutter: Double? = nil, iso: Int? = nil
+        aperture: Double? = nil, shutter: Double? = nil, iso: Int? = nil, captured: Date? = nil
     ) {
         self.camera = camera
         self.lens = lens
@@ -20,6 +22,7 @@ public struct ExposureInfo: Hashable, Sendable {
         self.aperture = aperture
         self.shutter = shutter
         self.iso = iso
+        self.captured = captured
     }
 
     public static func read(_ url: URL) -> ExposureInfo {
@@ -34,7 +37,10 @@ public struct ExposureInfo: Hashable, Sendable {
             focalLength: exif[kCGImagePropertyExifFocalLength] as? Double,
             aperture: exif[kCGImagePropertyExifFNumber] as? Double,
             shutter: exif[kCGImagePropertyExifExposureTime] as? Double,
-            iso: (exif[kCGImagePropertyExifISOSpeedRatings] as? [Int])?.first
+            iso: (exif[kCGImagePropertyExifISOSpeedRatings] as? [Int])?.first,
+            captured: parseDate(
+                exif[kCGImagePropertyExifDateTimeOriginal] as? String,
+                subseconds: exif[kCGImagePropertyExifSubsecTimeOriginal] as? String)
         )
     }
 
@@ -53,6 +59,20 @@ public struct ExposureInfo: Hashable, Sendable {
         guard seconds > 0 else { return "–" }
         if seconds >= 0.3 { return "\(trim(seconds)) s" }
         return "1/\(Int((1 / seconds).rounded())) s"
+    }
+
+    /// EXIF dates read "2025:06:01 14:03:22", in the camera's local time,
+    /// with fractions of a second in a separate field ("47" = 0.47 s).
+    static func parseDate(_ text: String?, subseconds: String?) -> Date? {
+        guard let text else { return nil }
+        let numbers = text.split(whereSeparator: { $0 == ":" || $0 == " " }).compactMap { Int($0) }
+        guard numbers.count == 6 else { return nil }
+        let components = DateComponents(
+            year: numbers[0], month: numbers[1], day: numbers[2],
+            hour: numbers[3], minute: numbers[4], second: numbers[5])
+        guard let date = Calendar.current.date(from: components) else { return nil }
+        let fraction = subseconds.flatMap { Double("0." + $0.trimmingCharacters(in: .whitespaces)) } ?? 0
+        return date.addingTimeInterval(fraction)
     }
 
     static func trim(_ value: Double) -> String {

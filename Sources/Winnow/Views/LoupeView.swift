@@ -12,7 +12,7 @@ struct LoupeView: View {
                     if store.zoomed {
                         ZoomedImage(url: photo.primary)
                     } else {
-                        PreviewImage(url: photo.primary, maxPixels: 2560)
+                        PreviewImage(url: photo.primary, maxPixels: PreviewSize.full)
                             .padding(16)
                             .opacity(photo.culling.flag == .reject ? 0.45 : 1)
                     }
@@ -20,6 +20,16 @@ struct LoupeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) { store.toggleZoom() }
+                .overlay(alignment: .topLeading) {
+                    Button {
+                        store.back()
+                    } label: {
+                        Label(store.zoomed ? "Fit" : "Back to grid", systemImage: "chevron.left")
+                    }
+                    .buttonStyle(ToneButtonStyle(.secondary))
+                    .help(store.zoomed ? "Back to the whole photo (Esc)" : "Back to the grid (Esc)")
+                    .padding(12)
+                }
                 Rectangle().fill(Theme.hairline).frame(height: 1)
                 PhotoInfoBar(photo: photo, position: (store.selectedIndex ?? 0) + 1, total: store.visible.count)
             }
@@ -27,12 +37,16 @@ struct LoupeView: View {
         }
     }
 
-    /// Loads the next few previews while you look at this one.
+    /// Loads the neighbours on both sides, nearest first, so stepping
+    /// forward or back shows the next photo at once.
     private func prefetch(after id: Photo.ID) async {
         let list = store.visible
         guard let index = list.firstIndex(where: { $0.id == id }) else { return }
-        for next in list[(index + 1)..<min(index + 4, list.count)] {
-            _ = await PreviewImage.load(next.primary, 2560)
+        for step in 1...5 {
+            for neighbour in [index + step, index - step] where list.indices.contains(neighbour) {
+                if Task.isCancelled { return }
+                _ = await PreviewImage.load(list[neighbour].primary, PreviewSize.full)
+            }
         }
     }
 }

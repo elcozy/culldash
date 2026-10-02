@@ -14,7 +14,8 @@ public final class PreviewLoader: @unchecked Sendable {
     private let fullSize = NSCache<NSString, CGImage>()
 
     init() {
-        previews.totalCostLimit = 1_000_000_000
+        // About 2,500 grid thumbnails or 140 full previews.
+        previews.totalCostLimit = 1_500_000_000
         fullSize.countLimit = 3
     }
 
