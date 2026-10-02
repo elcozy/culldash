@@ -1,0 +1,18 @@
+@startuml photo-states
+title A photo's states
+[*] --> Unflagged : found on the card
+Unflagged --> Picked : P
+Unflagged --> Rejected : X
+Picked --> Rejected : X
+Rejected --> Picked : P
+Picked --> Unflagged : U
+Rejected --> Unflagged : U or a star rating
+Rejected --> Rejected : R (rest of a burst)
+Unflagged --> Trashed : Delete
+Picked --> Trashed : Delete
+Rejected --> Trashed : Delete / Trash rejects
+Trashed --> Unflagged : Cmd-Z (back where it was,\nflag kept in its sidecar)
+Picked --> Sent : Send to (with stars and labels)
+Sent --> [*]
+Trashed --> [*] : Trash emptied
+@enduml

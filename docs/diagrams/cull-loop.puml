@@ -1,0 +1,24 @@
+@startuml cull-loop
+title Culling: one key per decision
+actor Photographer as P
+participant KeyCommands as K
+participant LibraryStore as S
+participant "Save queue\n(one write at a time)" as Q
+participant XMPSidecar as X
+participant PreviewLoader as L
+
+P -> K: P / X / 1-5 / 6-9
+K -> S: setFlag / setRating / setLabel
+alt several photos selected (cmd or shift click)
+  S -> S: change all of them, stay put
+else one photo
+  S -> S: change it, move to the next (auto-advance)
+end
+S -> Q: save(photo)
+Q -> X: write culldash:Flag, xmp:Rating, xmp:Label\n(reject = rating -1, Bridge's convention)
+S -> L: preload 5 neighbours each side
+L --> P: next photo shows at once
+P -> K: Z
+K -> S: toggleZoom
+S -> L: decode the full RAW (~750 ms)
+@enduml

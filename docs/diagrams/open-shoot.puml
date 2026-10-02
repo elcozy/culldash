@@ -1,0 +1,29 @@
+@startuml open-shoot
+title Opening a shoot: from the start screen to the grid
+actor Photographer as P
+participant "Start screen" as Start
+participant StorageScanner as SS
+participant LibraryStore as Store
+participant FolderScanner as FS
+participant XMPSidecar as XMP
+participant PreviewLoader as PL
+database "Card" as Card
+
+P -> Start: launch
+Start -> SS: locations()
+SS -> Card: mounted volumes (external, removable, SD slot)
+Start <-- SS: cards, drives, Pictures, Movies...
+P -> Start: open a drive / Open all
+Start -> SS: shootFolders(in: drive)
+SS -> Card: read up to 3 levels, 400 folders,\nskip THMBNL / SUB / GENERAL
+Start <-- SS: DCIM/100MSDCF 3,311 photos\nPRIVATE/M4ROOT/CLIP 42 videos
+P -> Start: pick folder(s)
+Start -> Store: open(folders)
+Store -> FS: scan(folders) (background)
+FS -> Card: list files, pair same-named RAW + JPEG
+FS -> XMP: read existing sidecars
+Store <-- FS: photos in capture order
+Store -> PL: warm every thumbnail (background)
+PL -> Card: embedded JPEG preview (~30 ms), video frame
+Store --> P: grid
+@enduml

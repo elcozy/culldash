@@ -1,0 +1,48 @@
+@startuml architecture
+!pragma layout smetana
+title CullDash: the pieces and how they connect
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+package "CullDash.app (SwiftUI)" {
+  [Views\nStart screen, grid, full view,\ninfo column, top bar] as Views
+  [LibraryStore\nshoot, selection, filters,\ntrash history, bursts] as Store
+  [KeyCommands\nP X U 0-9 R Del Esc] as Keys
+  [EditorLauncher\nSend to Lightroom...] as Launcher
+  [PlaceNames\nGPS to place (MapKit)] as Places
+}
+
+package "CullDashCore (no UI)" {
+  [StorageScanner\ndrives and photo folders] as Storage
+  [FolderScanner\nRAW + JPEG pairs] as Scanner
+  [PreviewLoader\nembedded previews, video frames] as Previews
+  [XMPSidecar\nstars, labels, flags] as XMP
+  [ExposureInfo\nEXIF, GPS, duration] as Exif
+  [SimilarityPrints + BurstGrouper] as Bursts
+  [PhotoTrash\ntrash and restore] as Trash
+}
+
+database "Card / drive / this Mac\nARW RAF JPG MP4 + .xmp" as Disk
+node "Lightroom, Capture One,\nany editor" as Editors
+cloud "Apple Maps" as Maps
+
+Keys --> Store
+Views --> Store
+Store --> Storage
+Store --> Scanner
+Views --> Previews
+Store --> XMP
+Views --> Exif
+Store --> Bursts
+Store --> Trash
+Store --> Launcher
+Views --> Places
+Storage --> Disk
+Scanner --> Disk
+Previews --> Disk
+XMP --> Disk
+Trash --> Disk
+Bursts --> Previews
+Launcher --> Editors
+Places --> Maps
+@enduml

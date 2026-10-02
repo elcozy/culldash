@@ -1,0 +1,27 @@
+@startuml handoffs
+title Hand-offs: Trash with undo, and Send to an editor
+actor Photographer as P
+participant LibraryStore as S
+participant PhotoTrash as T
+participant EditorLauncher as E
+participant "Lightroom" as LR
+database "Drive" as D
+
+== Trash ==
+P -> S: Delete, or Trash rejects
+S -> S: finish pending sidecar writes
+S -> T: trash(photo)
+T -> D: move RAW, JPEG and .xmp to that drive's Trash
+S <-- T: where each file went
+S -> S: remember for undo
+P -> S: Cmd-Z
+S -> T: restore(files)
+T -> D: move them back
+
+== Send to ==
+P -> S: Send N to... Lightroom
+S -> S: finish pending sidecar writes
+S -> E: open(shown photos, in: Lightroom)
+E -> LR: open files (starts an import of exactly these)
+LR -> D: reads stars and labels from the sidecars
+@enduml

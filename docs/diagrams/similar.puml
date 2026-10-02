@@ -1,0 +1,23 @@
+@startuml similar
+title Similar: grouping bursts and re-takes
+start
+:Similar switched on;
+:Read each photo's capture time\n(EXIF with hundredths, else file date);
+:Sort by time;
+repeat :Next frame;
+  if (More than 60 s after the previous?) then (yes)
+    :Start a new group;
+  else (no)
+    :Vision feature print of both previews\n(on this Mac);
+    if (Distance under 0.6 within 1.5 s,\nor under 0.5 otherwise?) then (yes)
+      :Same group;
+    else (no)
+      :Start a new group;
+    endif
+  endif
+repeat while (frames left?) is (yes)
+:Grid shows each group as a section;
+:Photographer picks keepers, presses R;
+:The rest of the group is rejected;
+stop
+@enduml
