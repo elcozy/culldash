@@ -46,6 +46,54 @@ You need macOS 14 or later and the Xcode Command Line Tools
 
 After pulling new code, run steps 2 and 3 again. Quit the open copy first (⌘Q).
 
+## Send it to someone to test
+
+```sh
+scripts/package.sh
+```
+
+This builds the app and wraps it in `build/CullDash-<version>.dmg`, laid out
+the usual way: the app beside a shortcut to Applications, so the tester drags
+one onto the other.
+
+How it opens on their Mac depends on how it is signed.
+
+**Unsigned (what you get by default).** The app is ad-hoc signed, which is
+enough to run on the machine that built it and nothing more. macOS quarantines
+anything downloaded, and refuses an ad-hoc signature, so the tester sees *"CullDash
+is damaged and can't be opened"* — which is the message for a signature macOS
+won't accept, not a broken download. Send these steps with the DMG:
+
+1. Open the DMG and drag CullDash to Applications.
+2. In Terminal: `xattr -dr com.apple.quarantine /Applications/CullDash.app`
+3. Open CullDash normally.
+
+**Signed and notarized (no warning at all).** Needs a paid Apple Developer
+account. Once you have a Developer ID certificate in your keychain:
+
+```sh
+# One time: store an app-specific password for notarytool.
+xcrun notarytool store-credentials culldash \
+  --apple-id you@example.com --team-id TEAMID --password <app-specific-password>
+
+# One time: say which certificate and profile to use.
+cp .env.example .env    # then edit it
+
+scripts/package.sh
+```
+
+`.env` is gitignored; `.env.example` documents both settings. They can also be
+passed inline for a one-off, and anything already in the environment wins over
+the file:
+
+```sh
+DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" scripts/package.sh
+```
+
+That signs with the hardened runtime, notarizes the DMG with Apple and staples
+the result, so it opens on any Mac with no prompt. `security find-identity -v
+-p codesigning` lists the identities you have.
+
 ## Run the website
 
 The landing page lives in `site/`. You need Node 20+ and pnpm.
@@ -62,6 +110,7 @@ pnpm dev        # then open http://localhost:3000
 
 ```sh
 scripts/build.sh test     # runs the CullDashCore tests
+scripts/package.sh        # builds build/CullDash-<version>.dmg to hand to a tester
 scripts/make-icon.sh      # redraws Resources/AppIcon.icns from the logo code
 scripts/diagrams.py       # renders docs/diagrams/*.puml into docs/APPFLOW.md (needs Java)
 ```
