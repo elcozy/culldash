@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
-# Builds CullDash and wraps it in a DMG to hand to someone else.
+# Builds CullDash and wraps it up to hand to someone else.
 #
-#     scripts/package.sh
+#     scripts/package.sh         a .dmg: the app beside a shortcut to
+#                                Applications, which is what people expect to
+#                                drag onto each other.
+#     scripts/package.sh zip     a .zip instead: smaller, and all some chat
+#                                apps will carry. Opens to the app itself.
+#
+# One or the other is needed to send it anywhere. An .app is a folder, and
+# mail, chat and cloud drives flatten folders: the executable bit, the symlinks
+# and the signature do not survive. Both of these keep the bundle whole.
 #
 # Signing decides what the person on the other end sees:
 #
@@ -39,10 +47,17 @@ if [ -f .env ]; then
     done < .env
 fi
 
+FORMAT="${1:-dmg}"
+case "$FORMAT" in
+    dmg|zip) ;;
+    *) echo "usage: scripts/package.sh [dmg|zip]" >&2; exit 2 ;;
+esac
+
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
 APP=build/CullDash.app
 STAGE=build/dmg
 DMG="build/CullDash-$VERSION.dmg"
+ZIP="build/CullDash-$VERSION.zip"
 
 scripts/build.sh app
 
@@ -53,24 +68,39 @@ if [ -n "${DEVELOPER_ID:-}" ]; then
     codesign --verify --strict --verbose=2 "$APP"
 fi
 
-# A plain folder with the app and a shortcut to /Applications, which is the
-# drag-to-install layout people expect.
-command rm -rf "$STAGE" "$DMG"
-mkdir -p "$STAGE"
-cp -R "$APP" "$STAGE/CullDash.app"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "CullDash $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
-command rm -rf "$STAGE"
-
-if [ -n "${DEVELOPER_ID:-}" ]; then
-    codesign --force --sign "$DEVELOPER_ID" "$DMG"
+if [ "$FORMAT" = zip ]; then
+    # ditto, not zip(1): it keeps the resource forks, symlinks and extended
+    # attributes a signed bundle needs to stay valid.
+    command rm -rf "$ZIP"
+    ditto -c -k --keepParent "$APP" "$ZIP"
+    ARTEFACT="$ZIP"
+else
+    # A plain folder with the app and a shortcut to /Applications, which is the
+    # drag-to-install layout people expect.
+    command rm -rf "$STAGE" "$DMG"
+    mkdir -p "$STAGE"
+    cp -R "$APP" "$STAGE/CullDash.app"
+    ln -s /Applications "$STAGE/Applications"
+    hdiutil create -volname "CullDash $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+    command rm -rf "$STAGE"
+    if [ -n "${DEVELOPER_ID:-}" ]; then
+        codesign --force --sign "$DEVELOPER_ID" "$DMG"
+    fi
+    ARTEFACT="$DMG"
 fi
 
 if [ -n "${NOTARY_PROFILE:-}" ]; then
     echo "Notarizing (a few minutes)..."
-    xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
-    xcrun stapler staple "$DMG"
-    echo "Stapled. $DMG opens on any Mac with no warning."
+    xcrun notarytool submit "$ARTEFACT" --keychain-profile "$NOTARY_PROFILE" --wait
+    # A zip cannot carry a ticket; the app inside it is stapled instead.
+    if [ "$FORMAT" = zip ]; then
+        xcrun stapler staple "$APP"
+        command rm -rf "$ZIP"
+        ditto -c -k --keepParent "$APP" "$ZIP"
+    else
+        xcrun stapler staple "$DMG"
+    fi
+    echo "Stapled. $ARTEFACT opens on any Mac with no warning."
 elif [ -n "${DEVELOPER_ID:-}" ]; then
     echo "Signed but not notarized: macOS will still warn on first open."
     echo "Set NOTARY_PROFILE to finish the job."
@@ -78,9 +108,9 @@ else
     cat <<'NOTE'
 
 Ad-hoc signed, so Gatekeeper will block it on another Mac. Send the tester
-this along with the DMG:
+this along with the file:
 
-  1. Open the DMG and drag CullDash to Applications.
+  1. Open it and drag CullDash to Applications.
   2. In Terminal, run:
        xattr -dr com.apple.quarantine /Applications/CullDash.app
   3. Open CullDash normally.
@@ -95,4 +125,4 @@ NOTE
 fi
 
 echo
-echo "Built $DMG ($(du -h "$DMG" | cut -f1))"
+echo "Built $ARTEFACT ($(du -h "$ARTEFACT" | cut -f1))"

@@ -3,6 +3,7 @@
 #
 #     scripts/build.sh test     build CullDashCore and run its tests
 #     scripts/build.sh app      build build/CullDash.app (ad-hoc signed)
+#     scripts/build.sh install  build it and copy it into /Applications
 #
 # Package.swift describes the same targets for Xcode and `swift build`; this
 # script exists because SwiftPM can break on a half-updated Command Line
@@ -57,8 +58,23 @@ build_app() {
     echo "Built $app"
 }
 
+# Dragging the app out of build/ in Finder *moves* it, because both are on the
+# same disk, and then build/ is empty until the next build. This copies.
+install_app() {
+    build_app
+    local dest=/Applications/CullDash.app
+    if pgrep -f "^$dest/Contents/MacOS/CullDash$" > /dev/null 2>&1; then
+        echo "CullDash is open. Quit it (Cmd-Q) first, or the running copy stays the old one." >&2
+        exit 1
+    fi
+    command rm -rf "$dest"
+    cp -R build/CullDash.app "$dest"
+    echo "Installed $dest, and build/CullDash.app is still here."
+}
+
 case "${1:-app}" in
     test) run_tests ;;
     app) build_app ;;
-    *) echo "usage: scripts/build.sh [test|app]" >&2; exit 2 ;;
+    install) install_app ;;
+    *) echo "usage: scripts/build.sh [test|app|install]" >&2; exit 2 ;;
 esac

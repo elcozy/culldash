@@ -48,13 +48,35 @@ After pulling new code, run steps 2 and 3 again. Quit the open copy first (⌘Q)
 
 ## Send it to someone to test
 
+To install it on this Mac:
+
 ```sh
-scripts/package.sh
+scripts/build.sh install
 ```
 
-This builds the app and wraps it in `build/CullDash-<version>.dmg`, laid out
-the usual way: the app beside a shortcut to Applications, so the tester drags
-one onto the other.
+That builds it and copies it into `/Applications`, leaving `build/CullDash.app`
+where it is. Quit CullDash first if it is open, or the running copy stays the
+old one.
+
+Dragging it across in Finder works too, but Finder *moves* it rather than
+copying, because `build/` and `/Applications` are on the same disk — so the
+build folder ends up empty. Hold Option while dragging to copy instead, or just
+run `scripts/build.sh app` again to put it back.
+
+To send it to someone else:
+
+```sh
+scripts/package.sh         # build/CullDash-<version>.dmg  (~1 MB)
+scripts/package.sh zip     # build/CullDash-<version>.zip  (~650 KB)
+```
+
+The DMG holds the app beside a shortcut to Applications, so the tester drags
+one onto the other. The zip is smaller and opens straight to the app.
+
+You need one or the other: an `.app` is a folder, and mail, chat apps and cloud
+drives flatten folders, losing the executable bit, the symlinks and the code
+signature. The zip is made with `ditto`, not `zip`, for the same reason. AirDrop
+is the one exception — it carries a bundle intact on its own.
 
 How it opens on their Mac depends on how it is signed.
 
@@ -110,6 +132,7 @@ pnpm dev        # then open http://localhost:3000
 
 ```sh
 scripts/build.sh test     # runs the CullDashCore tests
+scripts/build.sh install  # builds it and copies it into /Applications
 scripts/package.sh        # builds build/CullDash-<version>.dmg to hand to a tester
 scripts/make-icon.sh      # redraws Resources/AppIcon.icns from the logo code
 scripts/diagrams.py       # renders docs/diagrams/*.puml into docs/APPFLOW.md (needs Java)
