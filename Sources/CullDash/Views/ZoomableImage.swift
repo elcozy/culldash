@@ -77,7 +77,7 @@ final class ZoomScrollView: NSScrollView {
         // Pinch goes through AppKit; the limits are ours.
         minMagnification = 0.01
         maxMagnification = maximumScale
-        contentView.postsBoundsChangedNotification = true
+        contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
             self, selector: #selector(viewportChanged),
             name: NSView.boundsDidChangeNotification, object: contentView)
