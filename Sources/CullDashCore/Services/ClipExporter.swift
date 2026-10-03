@@ -76,6 +76,14 @@ public enum ClipExporter {
         return try place(target, from: url, to: destination)
     }
 
+    /// The pieces laid end to end, for playing the edit back before it is
+    /// written. The player's own clock then runs in output time, which is what
+    /// the strip draws, so the playhead and the row cannot drift apart.
+    public static func preview(of url: URL, edit: ClipEdit) async throws -> AVComposition {
+        guard !edit.isEverythingCut else { throw ClipExportError.everythingCut }
+        return try await composition(of: url, keeping: edit.kept)
+    }
+
     /// The kept parts laid end to end, each track copied across.
     private static func composition(of url: URL, keeping kept: [ClipRange]) async throws -> AVComposition {
         let asset = AVURLAsset(url: url)

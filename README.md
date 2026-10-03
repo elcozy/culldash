@@ -120,25 +120,32 @@ the result, so it opens on any Mac with no prompt. `security find-identity -v
 
 Open a video full screen and it plays like any other clip: **Space** plays and
 pauses rather than leaving the view. The pencil button under it starts editing,
-which brings out a strip of time; until then the strip stays out of the way.
-Drag across the strip to mark a stretch, or click to move the playhead. Then:
+which brings out a row of pieces; until then the row stays out of the way.
 
-- **scissors** — cut the marked stretch out and close the gap
-- **crop** — keep only the marked stretch, trimming both ends
-- **arrow** — put every cut back
+It works the way a video editor does. Scrub along the row, **split** at the
+playhead, click a piece to pick it, and **drop** it — what is left closes up,
+and the player immediately plays the result rather than the original, so what
+you see is what will be written.
+
+- **scissors** — split the clip at the playhead
+- **trash** — drop the picked piece; the rest close up
+- **arrow** — put the whole clip back
+- **xmark** — stop editing
 - **save** — write it as a new clip, or in the original's place
-- **xmark** — stop editing and put every cut back
 
-Saving as a new clip adds it to the shoot straight away, right beside the clip
-it came from and carrying its flag, rating and label over, so going back to the
-grid shows it where you would expect rather than leaving it to be found on the
-card later.
+Splitting on its own changes nothing, so saving stays unavailable until a piece
+is actually dropped.
 
 Saving copies the original streams rather than re-encoding, so it is quick and
 loses no quality. In exchange each cut lands on the keyframe before the mark,
 which on long-GOP footage can be up to a second early; QuickTime trims the same
 way. Replacing the original sends it to that drive's Trash and adds it to the
 undo history, so ⌘Z brings the full-length clip back.
+
+Saving as a new clip adds it to the shoot straight away, right beside the clip
+it came from and carrying its flag, rating and label over, so going back to the
+grid shows it where you would expect rather than leaving it to be found on the
+card later.
 
 ## Run the website
 

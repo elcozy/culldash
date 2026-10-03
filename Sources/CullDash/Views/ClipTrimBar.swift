@@ -1,49 +1,51 @@
 import SwiftUI
 import CullDashCore
 
-/// The clip as a strip of time: what is kept, what is cut, where the playhead
-/// is, and the stretch currently being marked.
+/// The clip as a row of pieces, flush against each other, with a white join
+/// wherever it has been split.
 ///
-/// Dragging across it marks a section; a click without a drag moves the
-/// playhead. Both actions are on the same strip because a clip is short and
-/// the strip is the only place either makes sense.
+/// It draws what is left, never what was taken: dropping a piece shortens the
+/// row and everything after it slides left, so there is no hatched hole to
+/// read past. A piece is picked by clicking it; the playhead follows the
+/// pointer as it is dragged along.
 struct ClipTrimBar: View {
     let edit: ClipEdit
-    /// Where the playhead is, in seconds.
+    /// Where the playhead is, in output seconds.
     let current: Double
-    /// The stretch being marked, while the mouse is down and after it is let go.
-    @Binding var selection: ClipRange?
+    /// Which piece is picked, if any.
+    @Binding var selected: Int?
     let onScrub: (Double) -> Void
 
-    @State private var dragOrigin: Double?
-    private let height = 48.0
+    private let height = 54.0
+    private let joinWidth = 2.0
 
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
             ZStack(alignment: .topLeading) {
-                // Cut ground showing through: everything not kept reads as a gap.
-                RoundedRectangle(cornerRadius: 4).fill(Theme.raised.opacity(0.5))
+                RoundedRectangle(cornerRadius: 4).fill(Theme.raised.opacity(0.4))
 
-                ForEach(Array(edit.kept.enumerated()), id: \.offset) { _, part in
+                ForEach(Array(edit.pieces.enumerated()), id: \.offset) { index, piece in
+                    let isPicked = selected == index
                     Rectangle()
-                        .fill(Theme.accent.opacity(0.30))
-                        .frame(width: max(1, span(part, width)))
-                        .offset(x: position(part.start, width))
+                        .fill(Theme.accent.opacity(isPicked ? 0.5 : 0.28))
+                        .overlay(
+                            Rectangle().strokeBorder(
+                                isPicked ? Theme.accent : .clear, lineWidth: 2)
+                        )
+                        .frame(width: max(1, length(piece.duration, width)))
+                        .offset(x: position(edit.outputStart(of: index), width))
+                        .onTapGesture { selected = isPicked ? nil : index }
                 }
 
-                ForEach(Array(edit.cuts.enumerated()), id: \.offset) { _, cut in
-                    CutMark()
-                        .frame(width: max(2, span(cut, width)))
-                        .offset(x: position(cut.start, width))
-                }
-
-                if let selection, !selection.isEmpty {
+                // The joins, drawn over the pieces so a split reads as one cut
+                // rather than two edges that happen to meet.
+                ForEach(1..<max(1, edit.pieces.count), id: \.self) { index in
                     Rectangle()
-                        .fill(Theme.accent.opacity(0.22))
-                        .overlay(Rectangle().strokeBorder(Theme.accent, lineWidth: 1.5))
-                        .frame(width: max(2, span(selection, width)))
-                        .offset(x: position(selection.start, width))
+                        .fill(Theme.canvas)
+                        .frame(width: joinWidth)
+                        .offset(x: position(edit.outputStart(of: index), width) - joinWidth / 2)
+                        .allowsHitTesting(false)
                 }
 
                 Rectangle()
@@ -51,63 +53,37 @@ struct ClipTrimBar: View {
                     .frame(width: 2)
                     .offset(x: position(current, width) - 1)
                     .shadow(color: .black.opacity(0.5), radius: 2)
+                    .allowsHitTesting(false)
             }
             .frame(height: height)
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.hairline, lineWidth: 1))
             .contentShape(Rectangle())
+            // Dragging scrubs. Picking a piece is the tap on the piece itself,
+            // so the two never fight over the same mouse-down.
             .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        let from = dragOrigin ?? time(value.startLocation.x, width)
-                        dragOrigin = from
-                        let to = time(value.location.x, width)
-                        // Under a few pixels it is a click, not a drag, and a
-                        // click should scrub rather than mark a sliver.
-                        if abs(value.location.x - value.startLocation.x) < 3 {
-                            selection = nil
-                            onScrub(to)
-                        } else {
-                            selection = ClipRange(start: from, end: to)
-                            onScrub(to)
-                        }
-                    }
-                    .onEnded { _ in dragOrigin = nil }
+                DragGesture(minimumDistance: 2)
+                    .onChanged { onScrub(time($0.location.x, width)) }
             )
         }
         .frame(height: height)
-        .accessibilityLabel("Clip timeline")
+        .accessibilityLabel("Clip timeline, \(edit.pieces.count) pieces")
     }
 
+    /// Output seconds to a position along the row.
     private func position(_ seconds: Double, _ width: Double) -> Double {
-        guard edit.duration > 0 else { return 0 }
-        return min(max(seconds / edit.duration, 0), 1) * width
+        guard edit.keptDuration > 0 else { return 0 }
+        return min(max(seconds / edit.keptDuration, 0), 1) * width
     }
 
-    private func span(_ range: ClipRange, _ width: Double) -> Double {
-        position(range.end, width) - position(range.start, width)
+    private func length(_ seconds: Double, _ width: Double) -> Double {
+        guard edit.keptDuration > 0 else { return 0 }
+        return (seconds / edit.keptDuration) * width
     }
 
     private func time(_ x: Double, _ width: Double) -> Double {
         guard width > 0 else { return 0 }
-        return min(max(x / width, 0), 1) * edit.duration
-    }
-}
-
-/// A cut section: hatched, so it reads as removed rather than merely darker.
-private struct CutMark: View {
-    var body: some View {
-        Canvas { context, size in
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.canvas.opacity(0.85)))
-            var stripes = Path()
-            var x = -size.height
-            while x < size.width {
-                stripes.move(to: CGPoint(x: x, y: size.height))
-                stripes.addLine(to: CGPoint(x: x + size.height, y: 0))
-                x += 7
-            }
-            context.stroke(stripes, with: .color(Theme.subtle.opacity(0.5)), lineWidth: 1)
-        }
+        return min(max(x / width, 0), 1) * edit.keptDuration
     }
 }
 

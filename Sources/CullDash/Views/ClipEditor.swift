@@ -2,9 +2,13 @@ import AVKit
 import SwiftUI
 import CullDashCore
 
-/// A clip with the system's playback controls, a strip of time under it, and
-/// enough to cut it down: mark a stretch, cut it out or keep only it, then
-/// write the result beside the original or in its place.
+/// A clip with the system's playback controls, and, once the pencil is
+/// pressed, a row of pieces under it to cut it down with.
+///
+/// Editing works the way it does in a video editor: scrub to a moment, split
+/// there, pick a piece and drop it. What is left closes up, and the player
+/// shows the result rather than the original file, so the playhead and the row
+/// never come to mean different things.
 ///
 /// It starts paused, so stepping through a card full of clips stays quiet.
 struct ClipEditor: View {
@@ -13,13 +17,15 @@ struct ClipEditor: View {
 
     @State private var player = AVPlayer()
     @State private var edit = ClipEdit(duration: 0)
-    @State private var selection: ClipRange?
+    /// Which piece is picked, if any.
+    @State private var selected: Int?
+    /// The playhead, in output seconds.
     @State private var current = 0.0
     @State private var observer: Any?
     @State private var export: Double?
     @State private var failure: String?
-    /// The strip stays out of the way until trimming is asked for: most clips
-    /// are only watched, and a shoot is flicked through one key at a time.
+    /// The row stays out of the way until editing is asked for: most clips are
+    /// only watched, and a shoot is flicked through one key at a time.
     @State private var editing = false
 
     var body: some View {
@@ -27,18 +33,13 @@ struct ClipEditor: View {
             VideoPlayer(player: player)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.floatRadius))
             if edit.duration > 0 {
-                if editing { editingStrip } else { trimEntry }
+                if editing { editingStrip } else { entry }
             }
         }
         .task(id: url) { await load() }
         // Space reaches the player through the store, since the player is
         // this view's own and the keys are read from the window.
         .onChange(of: store.clipPlaybackToggles) { togglePlayback() }
-        .onDisappear {
-            player.pause()
-            if let observer { player.removeTimeObserver(observer) }
-            observer = nil
-        }
         .alert(
             "Couldn't save the clip", isPresented: Binding(
                 get: { failure != nil }, set: { if !$0 { failure = nil } })
@@ -49,14 +50,13 @@ struct ClipEditor: View {
         }
     }
 
-    /// What is on screen until trimming starts: the clip's length, and the one
-    /// button that brings the strip out.
-    private var trimEntry: some View {
+    /// Before editing starts: the clip's length, and the way in.
+    private var entry: some View {
         HStack(spacing: 8) {
             Text(clipTime(edit.duration))
                 .font(.system(size: 12)).foregroundStyle(Theme.subtle).monospacedDigit()
             Spacer()
-            IconButton(symbol: "pencil", help: "Edit this clip: trim it, or cut sections out") {
+            IconButton(symbol: "pencil", help: "Edit this clip: split it and drop what you don't want") {
                 player.pause()
                 editing = true
             }
@@ -65,7 +65,7 @@ struct ClipEditor: View {
 
     private var editingStrip: some View {
         VStack(spacing: 8) {
-            ClipTrimBar(edit: edit, current: current, selection: $selection) { seconds in
+            ClipTrimBar(edit: edit, current: current, selected: $selected) { seconds in
                 player.seek(
                     to: CMTime(seconds: seconds, preferredTimescale: 600),
                     toleranceBefore: .zero, toleranceAfter: .zero)
@@ -83,47 +83,40 @@ struct ClipEditor: View {
         }
     }
 
-    /// Icons rather than words: the strip is already busy, and each one says
-    /// what it does on hover.
     @ViewBuilder private var actions: some View {
-        let marked = !(selection?.isEmpty ?? true)
-
-        IconButton(
-            symbol: "scissors",
-            help: marked
-                ? "Cut out the marked stretch and close the gap"
-                : "Drag across the strip to mark a stretch, then cut it out",
-            enabled: marked
-        ) {
-            guard let selection else { return }
-            edit.cut(selection)
-            self.selection = nil
+        IconButton(symbol: "scissors", help: "Split the clip at the playhead") {
+            if edit.split(atOutput: current) { selected = nil }
         }
 
         IconButton(
-            symbol: "crop",
-            help: marked
-                ? "Keep only the marked stretch, trimming both ends"
-                : "Drag across the strip to mark a stretch, then keep only it",
-            enabled: marked
+            symbol: "trash",
+            help: selected == nil
+                ? "Click a piece on the row, then drop it here"
+                : "Drop this piece; what is left closes up",
+            enabled: selected != nil
         ) {
-            guard let selection else { return }
-            edit.keepOnly(from: selection.start, to: selection.end)
-            self.selection = nil
+            guard let piece = selected else { return }
+            // Land where the dropped piece was, which is where the join now is.
+            let landing = edit.outputStart(of: piece)
+            edit.remove(at: piece)
+            selected = nil
+            Task { await showEdit(seekingTo: landing) }
         }
 
         IconButton(
-            symbol: "arrow.uturn.backward", help: "Put every cut back",
-            enabled: !edit.isUnchanged
+            symbol: "arrow.uturn.backward", help: "Put the whole clip back",
+            enabled: !edit.isUnchanged || edit.pieces.count > 1
         ) {
             edit.restoreEverything()
-            selection = nil
+            selected = nil
+            Task { await showEdit(seekingTo: current) }
         }
 
-        IconButton(symbol: "xmark", help: "Stop editing and put every cut back") {
+        IconButton(symbol: "xmark", help: "Stop editing and put the whole clip back") {
             edit.restoreEverything()
-            selection = nil
+            selected = nil
             editing = false
+            Task { await showEdit(seekingTo: current) }
         }
 
         Menu {
@@ -142,14 +135,14 @@ struct ClipEditor: View {
         .opacity(edit.isUnchanged || edit.isEverythingCut ? 0.35 : 1)
         .help(
             edit.isUnchanged
-                ? "Cut something out first, then save it"
+                ? "Drop a piece first, then save what is left"
                 : "Save the edited clip, as a new file or in the original's place")
     }
 
-    /// "0:42.0 of 1:03.5 · 2 cuts", so the cost of the cuts is visible.
+    /// "0:42.0 of 1:03.5 · 3 pieces", so the cost of the cuts is visible.
     private var lengths: String {
         var text = "\(clipTime(edit.keptDuration)) of \(clipTime(edit.duration))"
-        if !edit.cuts.isEmpty { text += " · \(edit.cuts.count) cut\(edit.cuts.count == 1 ? "" : "s")" }
+        if edit.pieces.count > 1 { text += " · \(edit.pieces.count) pieces" }
         return text
     }
 
@@ -160,7 +153,7 @@ struct ClipEditor: View {
 
     private func load() async {
         player.pause()
-        selection = nil
+        selected = nil
         editing = false
         current = 0
         if let observer { player.removeTimeObserver(observer) }
@@ -173,6 +166,22 @@ struct ClipEditor: View {
         ) { time in
             current = time.seconds
         }
+    }
+
+    /// Plays the pieces rather than the file, so dropping one is seen at once
+    /// and the playhead keeps meaning a moment of what is left.
+    private func showEdit(seekingTo seconds: Double) async {
+        guard !edit.isEverythingCut else {
+            player.replaceCurrentItem(with: nil)
+            return
+        }
+        let playing = player.timeControlStatus == .playing
+        guard let preview = try? await ClipExporter.preview(of: url, edit: edit) else { return }
+        player.replaceCurrentItem(with: AVPlayerItem(asset: preview))
+        await player.seek(
+            to: CMTime(seconds: min(seconds, edit.keptDuration), preferredTimescale: 600),
+            toleranceBefore: .zero, toleranceAfter: .zero)
+        if playing { player.play() }
     }
 
     private func write(to destination: ClipDestination) async {

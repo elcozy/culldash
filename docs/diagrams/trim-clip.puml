@@ -1,8 +1,8 @@
 @startuml trim-clip
-title Trimming a clip: mark, cut, save
+title Editing a clip: split, drop, save
 actor Photographer as P
 participant ClipEditor as Editor
-participant ClipTrimBar as Bar
+participant ClipTrimBar as Row
 participant ClipEdit as Edit
 participant ClipExporter as Exporter
 participant PhotoTrash as Trash
@@ -14,64 +14,69 @@ P -> Editor: Space
 Editor -> Editor: play or pause
 note right of Editor
   Space reaches the player through the store:
-  the player is the view's own, and the keys are
-  read from the window. On a clip it plays and
-  pauses rather than leaving the view; Return
-  still goes back to the grid.
+  the player is the view's own, the keys are read
+  from the window. Return still goes back to the grid.
 end note
 
 P -> Editor: pencil
-Editor -> Edit: ClipEdit(duration: the clip's length)
-Editor --> P: the strip of time appears
+Editor -> Edit: ClipEdit(duration:) — the whole clip, in one piece
+Editor --> P: the row of pieces appears
 
-group Marking
-  P -> Bar: drag across the strip
-  Bar --> P: the marked stretch, the cuts so far, the playhead
-  P -> Bar: click without dragging
-  Bar -> Editor: seek there
-end
-
-group Cutting
+group Splitting and dropping
+  P -> Row: drag along the row
+  Row -> Editor: scrub to that output time
   P -> Editor: scissors
-  Editor -> Edit: cut(marked)
+  Editor -> Edit: split(atOutput: the playhead)
   note right of Edit
-    Cuts that overlap or merely touch
-    merge into one, so the parts kept
-    can never gap or repeat.
+    The row still adds up to the whole clip,
+    so there is still nothing to save.
   end note
-  P -> Editor: crop
-  Editor -> Edit: keepOnly(from:to:) — the two ends go
-  Edit --> P: "0:42.0 of 1:03.5 · 2 cuts"
+  P -> Row: click a piece
+  P -> Editor: trash
+  Editor -> Edit: remove(at: that piece)
+  Edit --> Row: a shorter row; what followed slides left
+  note right of Edit
+    Pieces are the parts KEPT, so a hole is not
+    something this can hold. They are simply
+    laid end to end.
+  end note
+  Editor -> Exporter: preview(of:edit:)
+  Exporter --> Editor: an AVComposition of the pieces
+  Editor -> Editor: play that, not the file
+  note right of Editor
+    So the player's clock runs in output time,
+    the same time the row is drawn in. Otherwise
+    the playhead would measure the original while
+    the row measured the result.
+  end note
 end
 
 group Saving
   P -> Editor: save, then a new clip or the original's place
   Editor -> Exporter: export(url, edit, to:)
-  Exporter -> Edit: kept
-  Exporter -> Exporter: an AVMutableComposition of the kept parts,\nexported with AVAssetExportPresetPassthrough
+  Exporter -> Exporter: the pieces end to end, written with\nAVAssetExportPresetPassthrough
   note right of Exporter
-    The streams are copied, never re-encoded:
-    a 4K clip is written as fast as it reads and
-    comes out identical to the source. The cost
-    is that cuts land on the keyframe before the
-    mark, as they do in QuickTime.
+    Streams are copied, never re-encoded: as fast
+    as the clip reads, identical to the source. Cuts
+    land on the keyframe before the mark, as in
+    QuickTime.
   end note
-  Exporter --> Editor: <name>-trimmed.MOV beside the original
-  Editor -> Store: noteNewClip(at:from:)
-  Store -> Store: insert beside the source, with its\ncapture date and its decisions
-  Store --> P: the new clip is in the grid, next to the one it came from
 
-  alt replacing the original
+  alt saved as a new clip
+    Exporter --> Editor: <name>-trimmed.MOV beside the original
+    Editor -> Store: noteNewClip(at:from:)
+    Store -> Store: insert beside the source, with its\ncapture date and its decisions
+    Store --> P: it is in the grid, next to the one it came from
+  else replacing the original
     Exporter -> Trash: trash(original)
     Exporter -> Exporter: move the edit to the original's name
-    Exporter --> Store: noteReplacedClip(trashed)
+    Editor -> Store: noteReplacedClip(trashed)
     Store --> P: "C0007.MP4 replaced · Cmd-Z to undo"
     P -> Store: Cmd-Z
     Store -> Trash: trash the edit, then restore the original
     note right of Store
-      In that order: the edit holds the name
-      the original wants back, so it has to
-      move out of the way first.
+      In that order: the edit holds the name the
+      original wants back, so it has to move first.
     end note
   end
 end

@@ -280,21 +280,28 @@ rather than leaving the view, and Return still goes back to the grid. Space
 reaches the player through a counter on the store, because the player belongs
 to the view while the keys are read from the window.
 
-Editing starts with the pencil button under the clip, which brings out a strip
-of time; until then the strip stays out of the way, since most clips are only
-watched. Dragging across the strip marks a stretch; a click without a drag
-moves the playhead. The
-scissors cut the marked stretch out and close the gap, the crop keeps only it
-and throws both ends away, the arrow puts every cut back, and the cross stops
-trimming and restores the clip. Each is an icon that says what it does on
-hover, because the strip is busy enough already.
+Editing starts with the pencil button under the clip, which brings out a row of
+pieces; until then the row stays out of the way, since most clips are only
+watched.
 
-Cuts are held rather than the parts kept, since that is how the strip is used —
-mark a dull stretch, cut it, mark another. Cuts that overlap or merely touch
-merge into one, so the parts kept can never gap or repeat, and the parts kept
-are worked out from the cuts whenever they are needed.
+`ClipEdit` holds the clip as the pieces that are **kept**, not the parts cut
+away, so a hole is not a thing it can represent: dropping a piece shortens the
+row and everything after it slides left. That makes two kinds of position, and
+the names say which is which. A *source* time is a moment in the original file;
+an *output* time is a moment in what is left, which is what the row draws and
+the playhead runs along. `locate(output:)` turns one into the other.
 
-Saving writes the kept parts end to end through `AVAssetExportPresetPassthrough`,
+Splitting divides the piece under the playhead in two, which changes nothing
+about the result — the row still adds up to the whole clip — so saving stays
+unavailable until a piece is dropped. Dropping one removes it; what remains is
+already flush, because the pieces are simply concatenated.
+
+The player is handed an `AVComposition` of the pieces rather than the file, so
+it plays the edit back and its clock runs in output time. Without that the
+playhead would be measuring the original while the row measured the result, and
+the two would drift apart the moment anything was cut.
+
+Saving writes the pieces end to end through `AVAssetExportPresetPassthrough`,
 which copies the streams rather than re-encoding them: a 4K clip is written
 about as fast as it can be read and comes out identical to the source. The cost
 is that each cut lands on the keyframe before the mark, which on long-GOP
@@ -316,10 +323,10 @@ until the folder was opened again.
 
 ```plantuml
 @startuml trim-clip
-title Trimming a clip: mark, cut, save
+title Editing a clip: split, drop, save
 actor Photographer as P
 participant ClipEditor as Editor
-participant ClipTrimBar as Bar
+participant ClipTrimBar as Row
 participant ClipEdit as Edit
 participant ClipExporter as Exporter
 participant PhotoTrash as Trash
@@ -331,64 +338,69 @@ P -> Editor: Space
 Editor -> Editor: play or pause
 note right of Editor
   Space reaches the player through the store:
-  the player is the view's own, and the keys are
-  read from the window. On a clip it plays and
-  pauses rather than leaving the view; Return
-  still goes back to the grid.
+  the player is the view's own, the keys are read
+  from the window. Return still goes back to the grid.
 end note
 
 P -> Editor: pencil
-Editor -> Edit: ClipEdit(duration: the clip's length)
-Editor --> P: the strip of time appears
+Editor -> Edit: ClipEdit(duration:) — the whole clip, in one piece
+Editor --> P: the row of pieces appears
 
-group Marking
-  P -> Bar: drag across the strip
-  Bar --> P: the marked stretch, the cuts so far, the playhead
-  P -> Bar: click without dragging
-  Bar -> Editor: seek there
-end
-
-group Cutting
+group Splitting and dropping
+  P -> Row: drag along the row
+  Row -> Editor: scrub to that output time
   P -> Editor: scissors
-  Editor -> Edit: cut(marked)
+  Editor -> Edit: split(atOutput: the playhead)
   note right of Edit
-    Cuts that overlap or merely touch
-    merge into one, so the parts kept
-    can never gap or repeat.
+    The row still adds up to the whole clip,
+    so there is still nothing to save.
   end note
-  P -> Editor: crop
-  Editor -> Edit: keepOnly(from:to:) — the two ends go
-  Edit --> P: "0:42.0 of 1:03.5 · 2 cuts"
+  P -> Row: click a piece
+  P -> Editor: trash
+  Editor -> Edit: remove(at: that piece)
+  Edit --> Row: a shorter row; what followed slides left
+  note right of Edit
+    Pieces are the parts KEPT, so a hole is not
+    something this can hold. They are simply
+    laid end to end.
+  end note
+  Editor -> Exporter: preview(of:edit:)
+  Exporter --> Editor: an AVComposition of the pieces
+  Editor -> Editor: play that, not the file
+  note right of Editor
+    So the player's clock runs in output time,
+    the same time the row is drawn in. Otherwise
+    the playhead would measure the original while
+    the row measured the result.
+  end note
 end
 
 group Saving
   P -> Editor: save, then a new clip or the original's place
   Editor -> Exporter: export(url, edit, to:)
-  Exporter -> Edit: kept
-  Exporter -> Exporter: an AVMutableComposition of the kept parts,\nexported with AVAssetExportPresetPassthrough
+  Exporter -> Exporter: the pieces end to end, written with\nAVAssetExportPresetPassthrough
   note right of Exporter
-    The streams are copied, never re-encoded:
-    a 4K clip is written as fast as it reads and
-    comes out identical to the source. The cost
-    is that cuts land on the keyframe before the
-    mark, as they do in QuickTime.
+    Streams are copied, never re-encoded: as fast
+    as the clip reads, identical to the source. Cuts
+    land on the keyframe before the mark, as in
+    QuickTime.
   end note
-  Exporter --> Editor: <name>-trimmed.MOV beside the original
-  Editor -> Store: noteNewClip(at:from:)
-  Store -> Store: insert beside the source, with its\ncapture date and its decisions
-  Store --> P: the new clip is in the grid, next to the one it came from
 
-  alt replacing the original
+  alt saved as a new clip
+    Exporter --> Editor: <name>-trimmed.MOV beside the original
+    Editor -> Store: noteNewClip(at:from:)
+    Store -> Store: insert beside the source, with its\ncapture date and its decisions
+    Store --> P: it is in the grid, next to the one it came from
+  else replacing the original
     Exporter -> Trash: trash(original)
     Exporter -> Exporter: move the edit to the original's name
-    Exporter --> Store: noteReplacedClip(trashed)
+    Editor -> Store: noteReplacedClip(trashed)
     Store --> P: "C0007.MP4 replaced · Cmd-Z to undo"
     P -> Store: Cmd-Z
     Store -> Trash: trash the edit, then restore the original
     note right of Store
-      In that order: the edit holds the name
-      the original wants back, so it has to
-      move out of the way first.
+      In that order: the edit holds the name the
+      original wants back, so it has to move first.
     end note
   end
 end

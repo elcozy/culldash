@@ -9,64 +9,101 @@ import Testing
         ranges.map { [$0.start, $0.end] }
     }
 
-    @Test func keepsTheWholeClipUntilSomethingIsCut() {
+    @Test func startsAsOnePieceCoveringTheWholeClip() {
         let edit = ClipEdit(duration: 30)
+        #expect(spans(edit.pieces) == [[0, 30]])
         #expect(edit.isUnchanged)
-        #expect(spans(edit.kept) == [[0, 30]])
         #expect(edit.keptDuration == 30)
     }
 
-    @Test func cuttingTheMiddleLeavesTheTwoEnds() {
+    @Test func splittingDividesAPieceWithoutChangingTheLength() {
         var edit = ClipEdit(duration: 30)
-        edit.cut(ClipRange(start: 10, end: 20))
-        #expect(spans(edit.kept) == [[0, 10], [20, 30]])
+        let didSplit = edit.split(atOutput: 10)
+        #expect(didSplit)
+        #expect(spans(edit.pieces) == [[0, 10], [10, 30]])
+        // Nothing was dropped, so there is still nothing to export.
+        #expect(edit.keptDuration == 30)
+        #expect(edit.isUnchanged)
+    }
+
+    @Test func splittingOnAJoinOrAnEndDoesNothing() {
+        var edit = ClipEdit(duration: 30)
+        edit.split(atOutput: 10)
+        let onAJoin = edit.split(atOutput: 10)
+        let atTheStart = edit.split(atOutput: 0)
+        let atTheEnd = edit.split(atOutput: 30)
+        #expect(!onAJoin && !atTheStart && !atTheEnd)
+        #expect(spans(edit.pieces) == [[0, 10], [10, 30]])
+    }
+
+    @Test func droppingAPieceClosesTheGap() {
+        var edit = ClipEdit(duration: 30)
+        edit.split(atOutput: 10)
+        edit.split(atOutput: 20)
+        #expect(spans(edit.pieces) == [[0, 10], [10, 20], [20, 30]])
+
+        edit.remove(at: 1)
+        // The row is shorter and the parts that remain are flush: no hole.
+        #expect(spans(edit.pieces) == [[0, 10], [20, 30]])
         #expect(edit.keptDuration == 20)
         #expect(!edit.isUnchanged)
+        // What used to be at source 20 is now at output 10.
+        #expect(edit.outputStart(of: 1) == 10)
     }
 
-    @Test func trimmingBothEndsIsTwoCuts() {
+    @Test func outputTimeMapsBackToTheRightMomentOfTheOriginal() {
         var edit = ClipEdit(duration: 30)
-        edit.keepOnly(from: 5, to: 25)
-        #expect(spans(edit.kept) == [[5, 25]])
+        edit.split(atOutput: 10)
+        edit.split(atOutput: 20)
+        edit.remove(at: 1)  // 10-20 of the original is gone
+
+        // Before the cut, output and source agree.
+        #expect(edit.locate(output: 5)?.source == 5)
+        // After it, output 12 is source 22: the ten seconds removed are skipped.
+        let after = edit.locate(output: 12)
+        #expect(after?.index == 1 && after?.source == 22)
+    }
+
+    @Test func removingAnIndexThatIsNotThereIsIgnored() {
+        var edit = ClipEdit(duration: 30)
+        edit.remove(at: 7)
+        edit.remove(at: -1)
+        #expect(spans(edit.pieces) == [[0, 30]])
+    }
+
+    @Test func cuttingASpanOfTheOriginalLeavesTheTwoEnds() {
+        var edit = ClipEdit(duration: 30)
+        edit.cut(ClipRange(start: 10, end: 20))
+        #expect(spans(edit.pieces) == [[0, 10], [20, 30]])
         #expect(edit.keptDuration == 20)
     }
 
-    @Test func overlappingCutsMergeIntoOne() {
+    @Test func cuttingAcrossSeveralPiecesTakesOutOfEach() {
         var edit = ClipEdit(duration: 30)
-        edit.cut(ClipRange(start: 0, end: 5))
-        edit.cut(ClipRange(start: 3, end: 8))
-        #expect(spans(edit.cuts) == [[0, 8]])
-        #expect(spans(edit.kept) == [[8, 30]])
+        edit.split(atOutput: 10)
+        edit.split(atOutput: 20)
+        edit.cut(ClipRange(start: 5, end: 25))
+        #expect(spans(edit.pieces) == [[0, 5], [25, 30]])
     }
 
-    @Test func cutsThatMerelyTouchAlsoMerge() {
+    @Test func trimmingBothEndsKeepsOnlyTheMiddle() {
         var edit = ClipEdit(duration: 30)
-        edit.cut(ClipRange(start: 10, end: 15))
-        edit.cut(ClipRange(start: 15, end: 20))
-        #expect(spans(edit.cuts) == [[10, 20]])
-    }
-
-    @Test func severalSeparateCutsStayInOrder() {
-        var edit = ClipEdit(duration: 60)
-        edit.cut(ClipRange(start: 40, end: 50))
-        edit.cut(ClipRange(start: 10, end: 20))
-        #expect(spans(edit.cuts) == [[10, 20], [40, 50]])
-        #expect(spans(edit.kept) == [[0, 10], [20, 40], [50, 60]])
-        #expect(edit.keptDuration == 40)
+        edit.keepOnly(from: 5, to: 25)
+        #expect(spans(edit.pieces) == [[5, 25]])
+        #expect(edit.keptDuration == 20)
     }
 
     @Test func cutsAreHeldInsideTheClip() {
         var edit = ClipEdit(duration: 30)
         edit.cut(ClipRange(start: -10, end: 5))
         edit.cut(ClipRange(start: 25, end: 999))
-        #expect(spans(edit.cuts) == [[0, 5], [25, 30]])
-        #expect(spans(edit.kept) == [[5, 25]])
+        #expect(spans(edit.pieces) == [[5, 25]])
     }
 
     @Test func aBackwardsOrEmptyCutDoesNothing() {
         var edit = ClipEdit(duration: 30)
         edit.cut(ClipRange(start: 20, end: 10))  // reversed: same as 10-20
-        #expect(spans(edit.cuts) == [[10, 20]])
+        #expect(spans(edit.pieces) == [[0, 10], [20, 30]])
         edit.restoreEverything()
         edit.cut(ClipRange(start: 7, end: 7))
         #expect(edit.isUnchanged)
@@ -76,16 +113,18 @@ import Testing
         var edit = ClipEdit(duration: 30)
         edit.cut(ClipRange(start: 0, end: 30))
         #expect(edit.isEverythingCut)
-        #expect(edit.kept.isEmpty)
+        #expect(edit.pieces.isEmpty)
         #expect(edit.keptDuration == 0)
+        #expect(edit.locate(output: 1) == nil)
     }
 
-    @Test func cuttingOneSectionTwiceChangesNothingTheSecondTime() {
+    @Test func restoringPutsTheClipBackInOnePiece() {
         var edit = ClipEdit(duration: 30)
-        edit.cut(ClipRange(start: 10, end: 20))
-        let once = edit
-        edit.cut(ClipRange(start: 12, end: 18))
-        #expect(edit == once)
+        edit.split(atOutput: 10)
+        edit.remove(at: 0)
+        edit.restoreEverything()
+        #expect(spans(edit.pieces) == [[0, 30]])
+        #expect(edit.isUnchanged)
     }
 
     /// A trimmed copy is given its source's capture date so the two stay
@@ -101,7 +140,6 @@ import Testing
         let order = [after, copy, before, source].sorted(by: FolderScanner.captureOrder).map(\.name)
         #expect(order.first == "C0006.MP4" && order.last == "C0008.MP4")
         // The pair lands together, whichever way round the name puts them.
-        let pair = Set(order[1...2])
-        #expect(pair == ["C0007.MP4", "C0007-trimmed.MP4"])
+        #expect(Set(order[1...2]) == ["C0007.MP4", "C0007-trimmed.MP4"])
     }
 }
