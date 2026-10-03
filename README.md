@@ -116,6 +116,22 @@ That signs with the hardened runtime, notarizes the DMG with Apple and staples
 the result, so it opens on any Mac with no prompt. `security find-identity -v
 -p codesigning` lists the identities you have.
 
+## Trimming clips
+
+Open a video full screen and a strip of time appears under it. Drag across the
+strip to mark a stretch, or click to move the playhead. Then:
+
+- **scissors** — cut the marked stretch out and close the gap
+- **crop** — keep only the marked stretch, trimming both ends
+- **arrow** — put every cut back
+- **save** — write it as a new clip, or in the original's place
+
+Saving copies the original streams rather than re-encoding, so it is quick and
+loses no quality. In exchange each cut lands on the keyframe before the mark,
+which on long-GOP footage can be up to a second early; QuickTime trims the same
+way. Replacing the original sends it to that drive's Trash and adds it to the
+undo history, so ⌘Z brings the full-length clip back.
+
 ## Run the website
 
 The landing page lives in `site/`. You need Node 20+ and pnpm.

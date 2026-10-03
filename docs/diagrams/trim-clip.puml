@@ -1,0 +1,62 @@
+@startuml trim-clip
+title Trimming a clip: mark, cut, save
+actor Photographer as P
+participant ClipEditor as Editor
+participant ClipTrimBar as Bar
+participant ClipEdit as Edit
+participant ClipExporter as Exporter
+participant PhotoTrash as Trash
+participant LibraryStore as Store
+
+P -> Editor: open a clip full screen (Space, or Z)
+Editor -> Edit: ClipEdit(duration: the clip's length)
+
+group Marking
+  P -> Bar: drag across the strip
+  Bar --> P: the marked stretch, the cuts so far, the playhead
+  P -> Bar: click without dragging
+  Bar -> Editor: seek there
+end
+
+group Cutting
+  P -> Editor: scissors
+  Editor -> Edit: cut(marked)
+  note right of Edit
+    Cuts that overlap or merely touch
+    merge into one, so the parts kept
+    can never gap or repeat.
+  end note
+  P -> Editor: crop
+  Editor -> Edit: keepOnly(from:to:) — the two ends go
+  Edit --> P: "0:42.0 of 1:03.5 · 2 cuts"
+end
+
+group Saving
+  P -> Editor: save, then a new clip or the original's place
+  Editor -> Exporter: export(url, edit, to:)
+  Exporter -> Edit: kept
+  Exporter -> Exporter: an AVMutableComposition of the kept parts,\nexported with AVAssetExportPresetPassthrough
+  note right of Exporter
+    The streams are copied, never re-encoded:
+    a 4K clip is written as fast as it reads and
+    comes out identical to the source. The cost
+    is that cuts land on the keyframe before the
+    mark, as they do in QuickTime.
+  end note
+  Exporter --> Editor: <name>-trimmed.MOV beside the original
+
+  alt replacing the original
+    Exporter -> Trash: trash(original)
+    Exporter -> Exporter: move the edit to the original's name
+    Exporter --> Store: noteReplacedClip(trashed)
+    Store --> P: "C0007.MP4 replaced · Cmd-Z to undo"
+    P -> Store: Cmd-Z
+    Store -> Trash: trash the edit, then restore the original
+    note right of Store
+      In that order: the edit holds the name
+      the original wants back, so it has to
+      move out of the way first.
+    end note
+  end
+end
+@enduml

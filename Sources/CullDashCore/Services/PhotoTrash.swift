@@ -20,6 +20,15 @@ public enum PhotoTrash {
         return moved
     }
 
+    /// Trashes one file, e.g. a clip being replaced by an edited version.
+    /// `nil` when there was nothing there to move.
+    public static func trash(_ url: URL) throws -> TrashedFile? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        var result: NSURL?
+        try FileManager.default.trashItem(at: url, resultingItemURL: &result)
+        return (result as URL?).map { TrashedFile(original: url, trashed: $0) }
+    }
+
     /// Puts trashed files back where they were.
     public static func restore(_ files: [TrashedFile]) throws {
         for file in files {

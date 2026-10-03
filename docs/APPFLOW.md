@@ -273,6 +273,101 @@ Ctl -> Scroll: scroll there
 </details>
 <!-- /diagram -->
 
+## Trimming a clip
+
+A video opened full screen comes with a strip of time under it. Dragging across
+the strip marks a stretch; a click without a drag moves the playhead. The
+scissors cut the marked stretch out and close the gap, the crop keeps only it
+and throws both ends away, and the arrow puts every cut back. Each is an icon
+that says what it does on hover, because the strip is busy enough already.
+
+Cuts are held rather than the parts kept, since that is how the strip is used —
+mark a dull stretch, cut it, mark another. Cuts that overlap or merely touch
+merge into one, so the parts kept can never gap or repeat, and the parts kept
+are worked out from the cuts whenever they are needed.
+
+Saving writes the kept parts end to end through `AVAssetExportPresetPassthrough`,
+which copies the streams rather than re-encoding them: a 4K clip is written
+about as fast as it can be read and comes out identical to the source. The cost
+is that each cut lands on the keyframe before the mark, which on long-GOP
+footage can be a second early — the same trade QuickTime makes. The result goes
+beside the original as `<name>-trimmed.MOV`, or takes the original's place, in
+which case the original goes to that drive's Trash and joins the undo history,
+so ⌘Z brings the full-length clip back.
+
+<!-- diagram:trim-clip -->
+![trim-clip](diagrams/trim-clip.svg)
+
+<details><summary>PlantUML source</summary>
+
+```plantuml
+@startuml trim-clip
+title Trimming a clip: mark, cut, save
+actor Photographer as P
+participant ClipEditor as Editor
+participant ClipTrimBar as Bar
+participant ClipEdit as Edit
+participant ClipExporter as Exporter
+participant PhotoTrash as Trash
+participant LibraryStore as Store
+
+P -> Editor: open a clip full screen (Space, or Z)
+Editor -> Edit: ClipEdit(duration: the clip's length)
+
+group Marking
+  P -> Bar: drag across the strip
+  Bar --> P: the marked stretch, the cuts so far, the playhead
+  P -> Bar: click without dragging
+  Bar -> Editor: seek there
+end
+
+group Cutting
+  P -> Editor: scissors
+  Editor -> Edit: cut(marked)
+  note right of Edit
+    Cuts that overlap or merely touch
+    merge into one, so the parts kept
+    can never gap or repeat.
+  end note
+  P -> Editor: crop
+  Editor -> Edit: keepOnly(from:to:) — the two ends go
+  Edit --> P: "0:42.0 of 1:03.5 · 2 cuts"
+end
+
+group Saving
+  P -> Editor: save, then a new clip or the original's place
+  Editor -> Exporter: export(url, edit, to:)
+  Exporter -> Edit: kept
+  Exporter -> Exporter: an AVMutableComposition of the kept parts,\nexported with AVAssetExportPresetPassthrough
+  note right of Exporter
+    The streams are copied, never re-encoded:
+    a 4K clip is written as fast as it reads and
+    comes out identical to the source. The cost
+    is that cuts land on the keyframe before the
+    mark, as they do in QuickTime.
+  end note
+  Exporter --> Editor: <name>-trimmed.MOV beside the original
+
+  alt replacing the original
+    Exporter -> Trash: trash(original)
+    Exporter -> Exporter: move the edit to the original's name
+    Exporter --> Store: noteReplacedClip(trashed)
+    Store --> P: "C0007.MP4 replaced · Cmd-Z to undo"
+    P -> Store: Cmd-Z
+    Store -> Trash: trash the edit, then restore the original
+    note right of Store
+      In that order: the edit holds the name
+      the original wants back, so it has to
+      move out of the way first.
+    end note
+  end
+end
+@enduml
+```
+
+</details>
+<!-- /diagram -->
+
 ## A photo's states
 
 <!-- diagram:photo-states -->

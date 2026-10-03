@@ -5,6 +5,16 @@ import CullDashCore
 struct TrashedPhoto {
     let photo: Photo
     let files: [TrashedFile]
+    /// Set when a clip was replaced by a shorter edit rather than trashed.
+    /// The edit now carries the original's name, so undo has to move it out
+    /// of the way before the original can come back to that name.
+    var replacedBy: URL?
+
+    init(photo: Photo, files: [TrashedFile], replacedBy: URL? = nil) {
+        self.photo = photo
+        self.files = files
+        self.replacedBy = replacedBy
+    }
 }
 
 /// Trashing photos, one with Delete or all rejects at once, and undoing it.
@@ -50,14 +60,37 @@ extension LibraryStore {
     }
 
     /// ⌘Z: puts the last trashed photos back, in their places.
+    /// A clip was replaced by a shorter edit and the original went to the
+    /// Trash. It joins the undo history, so Cmd-Z puts the long one back just
+    /// as it would a rejected frame.
+    func noteReplacedClip(_ trashed: TrashedFile) {
+        guard let photo = photos.first(where: { $0.primary == trashed.original }) else { return }
+        trashHistory.append([TrashedPhoto(photo: photo, files: [trashed], replacedBy: trashed.original)])
+        show("\(trashed.original.lastPathComponent) replaced · ⌘Z to undo")
+    }
+
     func undoTrash() async {
         guard let last = trashHistory.popLast() else { return }
         let restored = await Task.detached(priority: .userInitiated) {
-            last.filter { (try? PhotoTrash.restore($0.files)) != nil }.map(\.photo)
+            last.filter { entry in
+                // A replaced clip: the edit has to go to the Trash first, or
+                // there is already a file sitting under the name the original
+                // wants back and the move fails.
+                if let edit = entry.replacedBy, (try? PhotoTrash.trash(edit)) == nil { return false }
+                return (try? PhotoTrash.restore(entry.files)) != nil
+            }
         }.value
-        photos.append(contentsOf: restored)
+        // A replaced clip never left the shoot, so only the trashed ones are
+        // added back; adding the others would list them twice.
+        let returning = restored.filter { $0.replacedBy == nil }.map(\.photo)
+        photos.append(contentsOf: returning)
         photos.sort(by: FolderScanner.captureOrder)
-        selectedID = restored.first?.id ?? selectedID
-        show(restored.count == 1 ? "\(restored[0].name) is back" : "\(restored.count) photos are back")
+        selectedID = returning.first?.id ?? selectedID
+        if restored.contains(where: { $0.replacedBy != nil }) {
+            show(restored.count == 1 ? "\(restored[0].photo.name) is back to its full length"
+                : "\(restored.count) clips are back")
+        } else {
+            show(returning.count == 1 ? "\(returning[0].name) is back" : "\(returning.count) photos are back")
+        }
     }
 }
