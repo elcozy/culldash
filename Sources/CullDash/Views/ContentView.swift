@@ -115,10 +115,18 @@ private struct NoticeView: View {
 
 /// The keys, always in view, so nobody has to look them up.
 private struct HintBar: View {
-    private let hints = [
-        ("P", "pick"), ("X", "reject"), ("U", "clear"), ("1–5", "stars"), ("6–9", "label"),
-        ("Space", "view"), ("Z", "100%"), ("Del", "trash"), ("R", "reject rest"), ("Esc", "back"),
-    ]
+    @Environment(LibraryStore.self) private var store
+
+    /// Space changes job on a clip in the full-screen view, so the hint says
+    /// which one it is doing rather than a half-truth.
+    private var hints: [(String, String)] {
+        let showingClip = store.mode == .loupe && store.selected?.kind == .video
+        return [
+            ("P", "pick"), ("X", "reject"), ("U", "clear"), ("1–5", "stars"), ("6–9", "label"),
+            ("Space", showingClip ? "play/pause" : "view"), ("Z", "100%"), ("Del", "trash"),
+            ("R", "reject rest"), ("Esc", "back"),
+        ]
+    }
 
     var body: some View {
         HStack(spacing: 16) {

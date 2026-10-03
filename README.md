@@ -118,13 +118,17 @@ the result, so it opens on any Mac with no prompt. `security find-identity -v
 
 ## Trimming clips
 
-Open a video full screen and a strip of time appears under it. Drag across the
-strip to mark a stretch, or click to move the playhead. Then:
+Open a video full screen and it plays like any other clip: **Space** plays and
+pauses rather than leaving the view. The scissors button under it starts
+trimming, which brings out a strip of time; until then the strip stays out of
+the way. Drag across the strip to mark a stretch, or click to move the
+playhead. Then:
 
 - **scissors** — cut the marked stretch out and close the gap
 - **crop** — keep only the marked stretch, trimming both ends
 - **arrow** — put every cut back
 - **save** — write it as a new clip, or in the original's place
+- **xmark** — stop trimming and put every cut back
 
 Saving copies the original streams rather than re-encoding, so it is quick and
 loses no quality. In exchange each cut lands on the keyframe before the mark,
@@ -166,7 +170,8 @@ folder straight away, `-mode loupe` goes straight to the full-screen view, and
 | Key | Does |
 | --- | --- |
 | ← → ↑ ↓ | move |
-| Space / Return | grid ↔ full screen |
+| Return | grid ↔ full screen |
+| Space | grid ↔ full screen, or play/pause on a clip |
 | P / X / U | pick / reject / clear |
 | 0–5 | stars |
 | 6–9 | colour label |

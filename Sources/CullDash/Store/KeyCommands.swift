@@ -5,7 +5,8 @@ import CullDashCore
 /// The culling keys. They are read from the window's key events directly,
 /// so they work wherever focus is, and ⌘ shortcuts still reach the menus.
 ///
-///     ← → ↑ ↓   move          Space / Return   grid ↔ full screen
+///     ← → ↑ ↓   move          Return   grid ↔ full screen
+///     Space     grid ↔ full screen, or play/pause on a clip
 ///     P X U     pick, reject, clear            Z   zoom to 100%
 ///     0–5       stars         6–9   colour label    Esc  back
 ///     Delete    move to Trash (⌘Z puts it back)     R    reject the rest of a burst
@@ -22,7 +23,8 @@ enum KeyCommands {
         case 124: store.move(by: 1)
         case 126: store.moveRow(-1)
         case 125: store.moveRow(1)
-        case 36, 76, 49: store.toggleMode()
+        case 36, 76: store.toggleMode()
+        case 49: store.playOrToggleMode()
         case 53:
             if store.extraSelection.isEmpty { store.back() } else { store.clearSelection() }
         case 51, 117: Task { await store.trashSelected() }

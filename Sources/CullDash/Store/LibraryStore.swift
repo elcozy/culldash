@@ -34,6 +34,10 @@ final class LibraryStore {
     var errorMessage: String?
     /// A short message at the bottom of the window, e.g. after a trash.
     var notice: String?
+    /// Bumped by Space on a clip; the clip editor plays or pauses when it
+    /// changes. The player itself lives in the view, so this is how a key
+    /// press reaches it.
+    var clipPlaybackToggles = 0
     /// Bumped by ⌘F; the top bar focuses its search field when it changes.
     var searchRequests = 0
 

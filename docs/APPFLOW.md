@@ -275,11 +275,19 @@ Ctl -> Scroll: scroll there
 
 ## Trimming a clip
 
-A video opened full screen comes with a strip of time under it. Dragging across
-the strip marks a stretch; a click without a drag moves the playhead. The
+A video opened full screen plays like any other clip: Space plays and pauses it
+rather than leaving the view, and Return still goes back to the grid. Space
+reaches the player through a counter on the store, because the player belongs
+to the view while the keys are read from the window.
+
+Trimming starts with the scissors button under the clip, which brings out a
+strip of time; until then the strip stays out of the way, since most clips are
+only watched. Dragging across the strip marks a stretch; a click without a drag
+moves the playhead. The
 scissors cut the marked stretch out and close the gap, the crop keeps only it
-and throws both ends away, and the arrow puts every cut back. Each is an icon
-that says what it does on hover, because the strip is busy enough already.
+and throws both ends away, the arrow puts every cut back, and the cross stops
+trimming and restores the clip. Each is an icon that says what it does on
+hover, because the strip is busy enough already.
 
 Cuts are held rather than the parts kept, since that is how the strip is used —
 mark a dull stretch, cut it, mark another. Cuts that overlap or merely touch
@@ -311,8 +319,21 @@ participant ClipExporter as Exporter
 participant PhotoTrash as Trash
 participant LibraryStore as Store
 
-P -> Editor: open a clip full screen (Space, or Z)
+P -> Editor: open a clip full screen
+Editor --> P: the clip, its length, and a scissors button
+P -> Editor: Space
+Editor -> Editor: play or pause
+note right of Editor
+  Space reaches the player through the store:
+  the player is the view's own, and the keys are
+  read from the window. On a clip it plays and
+  pauses rather than leaving the view; Return
+  still goes back to the grid.
+end note
+
+P -> Editor: scissors
 Editor -> Edit: ClipEdit(duration: the clip's length)
+Editor --> P: the strip of time appears
 
 group Marking
   P -> Bar: drag across the strip

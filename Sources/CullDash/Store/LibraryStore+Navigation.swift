@@ -16,6 +16,17 @@ extension LibraryStore {
         move(by: mode == .grid ? direction * gridColumns : direction)
     }
 
+    /// Space: on a clip in the full-screen view it plays or pauses, as it does
+    /// in every other player. Anywhere else it is still the way between the
+    /// grid and one photo. Return does that in both cases.
+    func playOrToggleMode() {
+        if mode == .loupe, selected?.kind == .video {
+            clipPlaybackToggles += 1
+        } else {
+            toggleMode()
+        }
+    }
+
     func toggleMode() {
         mode = mode == .grid ? .loupe : .grid
         zoomed = false

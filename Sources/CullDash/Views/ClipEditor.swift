@@ -8,6 +8,7 @@ import CullDashCore
 ///
 /// It starts paused, so stepping through a card full of clips stays quiet.
 struct ClipEditor: View {
+    @Environment(LibraryStore.self) private var store
     let url: URL
     /// Called with the clip that should now be shown, after a replace has put
     /// a shorter file in the old one's place.
@@ -20,14 +21,22 @@ struct ClipEditor: View {
     @State private var observer: Any?
     @State private var export: Double?
     @State private var failure: String?
+    /// The strip stays out of the way until trimming is asked for: most clips
+    /// are only watched, and a shoot is flicked through one key at a time.
+    @State private var editing = false
 
     var body: some View {
         VStack(spacing: 10) {
             VideoPlayer(player: player)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.floatRadius))
-            if edit.duration > 0 { editingStrip }
+            if edit.duration > 0 {
+                if editing { editingStrip } else { trimEntry }
+            }
         }
         .task(id: url) { await load() }
+        // Space reaches the player through the store, since the player is
+        // this view's own and the keys are read from the window.
+        .onChange(of: store.clipPlaybackToggles) { togglePlayback() }
         .onDisappear {
             player.pause()
             if let observer { player.removeTimeObserver(observer) }
@@ -40,6 +49,20 @@ struct ClipEditor: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(failure ?? "")
+        }
+    }
+
+    /// What is on screen until trimming starts: the clip's length, and the one
+    /// button that brings the strip out.
+    private var trimEntry: some View {
+        HStack(spacing: 8) {
+            Text(clipTime(edit.duration))
+                .font(.system(size: 12)).foregroundStyle(Theme.subtle).monospacedDigit()
+            Spacer()
+            IconButton(symbol: "scissors", help: "Trim this clip") {
+                player.pause()
+                editing = true
+            }
         }
     }
 
@@ -86,6 +109,12 @@ struct ClipEditor: View {
         }
         .disabled(edit.isUnchanged)
 
+        IconButton(symbol: "xmark", help: "Stop trimming and put every cut back") {
+            edit.restoreEverything()
+            selection = nil
+            editing = false
+        }
+
         Menu {
             Button("Save as a new clip") { Task { await write(to: .newFile) } }
             Button("Replace the original…") { Task { await write(to: .replacingOriginal) } }
@@ -109,9 +138,15 @@ struct ClipEditor: View {
         return text
     }
 
+    /// Space on a clip: play if it is paused, pause if it is running.
+    private func togglePlayback() {
+        if player.timeControlStatus == .paused { player.play() } else { player.pause() }
+    }
+
     private func load() async {
         player.pause()
         selection = nil
+        editing = false
         current = 0
         if let observer { player.removeTimeObserver(observer) }
         let item = AVPlayerItem(url: url)
