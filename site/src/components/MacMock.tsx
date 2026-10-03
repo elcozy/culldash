@@ -51,8 +51,8 @@ export function MacMock() {
     }, []);
 
     return (
-        <div className="tilt-in mx-auto w-full max-w-5xl" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
-            <div className="rounded-[1.6rem] bg-[#1d1d1f] p-2.5 shadow-[0_40px_120px_-30px_rgb(0_113_227_/_0.45)] ring-1 ring-black/10 sm:p-3.5">
+        <div className="mx-auto w-full max-w-5xl" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+            <div className="rounded-[1.6rem] bg-[#1d1d1f] p-2.5 shadow-[0_50px_100px_-30px_rgb(0_0_0_/_0.45)] ring-1 ring-black/10 sm:p-3.5">
                 <div className="overflow-hidden rounded-[1rem] bg-app-canvas text-app-text">
                     <WindowBar />
                     <ToolStrip view={view} onView={setView} picks={marks.filter((m) => m === Mark.Pick).length} />

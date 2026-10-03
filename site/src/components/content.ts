@@ -13,7 +13,8 @@ export const nav = [
     { id: "features", label: "Features" },
     { id: "how", label: "How it works" },
     { id: "keys", label: "Keys" },
-    { id: "faq", label: "FAQ" },
+    { id: "privacy", label: "Privacy" },
+    { id: "compare", label: "Compare" },
 ];
 
 export const formats = [
@@ -71,15 +72,6 @@ export const principles = [
     { title: "Nothing is imported.", body: "Your files stay on the card or drive. CullDash only reads them and writes small sidecars." },
     { title: "Nothing leaves your Mac.", body: "Grouping similar shots uses Apple's on-device Vision. No account, no upload." },
     { title: "Nothing is lost by mistake.", body: "Every delete goes to the Trash and every Trash can be undone." },
-];
-
-export const keys = [
-    { key: "P", label: "Pick a keeper" },
-    { key: "X", label: "Reject" },
-    { key: "1–5", label: "Stars" },
-    { key: "R", label: "Reject the rest of a burst" },
-    { key: "Del", label: "Trash this one" },
-    { key: "⌘Z", label: "Undo" },
 ];
 
 export const faqs = [
