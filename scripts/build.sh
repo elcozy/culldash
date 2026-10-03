@@ -44,7 +44,15 @@ EOF
 
 build_app() {
     core
+    # -framework AVKit explicitly: `import AVKit` autolinks the SwiftUI overlay
+    # (_AVKit_SwiftUI) and AVFoundation, but not AVKit itself. Nothing in the
+    # app names an AVKit class directly — VideoPlayer is a SwiftUI type — so
+    # the framework was left out, and the first video opened in the full-screen
+    # view aborted the app with "failed to demangle superclass of
+    # VideoPlayerView from mangled name 'So12AVPlayerViewC'": its superclass
+    # AVPlayerView was simply not in the process.
     swiftc -O -module-name CullDash -parse-as-library -I "$OUT" -L "$OUT" -lCullDashCore \
+        -framework AVKit \
         $(find Sources/CullDash -name '*.swift') -o "$OUT/CullDash"
     local app=build/CullDash.app
     command rm -rf "$app"

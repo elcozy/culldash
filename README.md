@@ -142,7 +142,8 @@ scripts/diagrams.py       # renders docs/diagrams/*.puml into docs/APPFLOW.md (n
 targets for Xcode and `swift build`.
 
 For testing, `build/CullDash.app/Contents/MacOS/CullDash -folder <path>` opens a
-folder straight away, and `-appearance light` or `dark` pins the look.
+folder straight away, `-mode loupe` goes straight to the full-screen view, and
+`-appearance light` or `dark` pins the look.
 
 ## Keys
 

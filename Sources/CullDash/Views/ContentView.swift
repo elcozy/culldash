@@ -47,6 +47,9 @@ struct ContentView: View {
             // to open and skip the main window.
             if store.folder == nil, let path = UserDefaults.standard.string(forKey: "folder") {
                 await store.open(URL(fileURLWithPath: path, isDirectory: true))
+                // `-mode loupe` opens straight into the full-screen view, so a
+                // test can reach it without pressing a key.
+                if UserDefaults.standard.string(forKey: "mode") == "loupe" { store.mode = .loupe }
             }
         }
         .dropDestination(for: URL.self) { urls, _ in
