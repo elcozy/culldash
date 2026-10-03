@@ -33,34 +33,31 @@ export function Faq() {
     );
 }
 
-/** The last word: the icon, one line, and how to get it. */
+/**
+ * The last word, the way Apple ends a product page: no box, no glow, just
+ * the icon, the name, one line and how to get it, on a plain full-width
+ * section.
+ */
 export function Cta() {
-    const [copied, setCopied] = useState(false);
-    const command = "brew install --cask elcozy/tap/culldash";
     return (
         <section className="section bg-alt text-center">
             <div className="wrap">
                 <FadeUp>
-                    <Logo size={96} className="mx-auto drop-shadow-xl" />
-                    <h2 className="headline-sm mx-auto mt-8 max-w-[14em]">Your next shoot, culled before dinner.</h2>
-                    <p className="lede mx-auto mt-5 max-w-[26em]">
-                        CullDash is in early development. Build it from GitHub today; a signed download and Homebrew are on the way.
-                    </p>
-                    <div className="mt-9 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+                    <Logo size={120} className="mx-auto" />
+                    <p className="eyebrow mt-8">CullDash</p>
+                    <h2 className="headline mx-auto mt-2 max-w-[12em]">Your next shoot, culled before dinner.</h2>
+                    <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
                         <a href={links.repo} className="btn">
                             Get it on GitHub
                         </a>
-                        <button
-                            onClick={() => {
-                                navigator.clipboard?.writeText(command);
-                                setCopied(true);
-                            }}
-                            className="rounded-full bg-tile px-5 py-3 font-mono text-[13px] text-secondary"
-                            title="Homebrew install, coming soon"
-                        >
-                            {copied ? "Copied. Coming soon." : `${command}  · soon`}
-                        </button>
+                        <a href="#how" className="link">
+                            See how it works ›
+                        </a>
                     </div>
+                    <p className="mt-10 text-sm text-tertiary">
+                        In early development. A signed download is on the way, and later{" "}
+                        <code className="font-mono text-secondary">brew install --cask elcozy/tap/culldash</code>.
+                    </p>
                 </FadeUp>
             </div>
         </section>
