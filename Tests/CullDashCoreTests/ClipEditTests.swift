@@ -87,4 +87,21 @@ import Testing
         edit.cut(ClipRange(start: 12, end: 18))
         #expect(edit == once)
     }
+
+    /// A trimmed copy is given its source's capture date so the two stay
+    /// together when the shoot is sorted. Which of the pair comes first is
+    /// decided by the name, so this pins down what that ordering actually is.
+    @Test func aTrimmedCopySortsNextToTheClipItCameFrom() {
+        let when = Date(timeIntervalSince1970: 1_800_000_000)
+        let before = Photo(primary: URL(fileURLWithPath: "/c/C0006.MP4"), kind: .video, modified: when.addingTimeInterval(-10))
+        let source = Photo(primary: URL(fileURLWithPath: "/c/C0007.MP4"), kind: .video, modified: when)
+        let copy = Photo(primary: URL(fileURLWithPath: "/c/C0007-trimmed.MP4"), kind: .video, modified: when)
+        let after = Photo(primary: URL(fileURLWithPath: "/c/C0008.MP4"), kind: .video, modified: when.addingTimeInterval(10))
+
+        let order = [after, copy, before, source].sorted(by: FolderScanner.captureOrder).map(\.name)
+        #expect(order.first == "C0006.MP4" && order.last == "C0008.MP4")
+        // The pair lands together, whichever way round the name puts them.
+        let pair = Set(order[1...2])
+        #expect(pair == ["C0007.MP4", "C0007-trimmed.MP4"])
+    }
 }

@@ -10,9 +10,6 @@ import CullDashCore
 struct ClipEditor: View {
     @Environment(LibraryStore.self) private var store
     let url: URL
-    /// Called with the clip that should now be shown, after a replace has put
-    /// a shorter file in the old one's place.
-    let onReplaced: (TrashedFile) -> Void
 
     @State private var player = AVPlayer()
     @State private var edit = ClipEdit(duration: 0)
@@ -59,7 +56,7 @@ struct ClipEditor: View {
             Text(clipTime(edit.duration))
                 .font(.system(size: 12)).foregroundStyle(Theme.subtle).monospacedDigit()
             Spacer()
-            IconButton(symbol: "scissors", help: "Trim this clip") {
+            IconButton(symbol: "pencil", help: "Edit this clip: trim it, or cut sections out") {
                 player.pause()
                 editing = true
             }
@@ -89,27 +86,41 @@ struct ClipEditor: View {
     /// Icons rather than words: the strip is already busy, and each one says
     /// what it does on hover.
     @ViewBuilder private var actions: some View {
-        IconButton(symbol: "scissors", help: "Cut out the marked stretch and close the gap") {
-            guard let marked = selection else { return }
-            edit.cut(marked)
-            selection = nil
-        }
-        .disabled(selection?.isEmpty ?? true)
+        let marked = !(selection?.isEmpty ?? true)
 
-        IconButton(symbol: "crop", help: "Keep only the marked stretch, trimming both ends") {
-            guard let marked = selection else { return }
-            edit.keepOnly(from: marked.start, to: marked.end)
-            selection = nil
+        IconButton(
+            symbol: "scissors",
+            help: marked
+                ? "Cut out the marked stretch and close the gap"
+                : "Drag across the strip to mark a stretch, then cut it out",
+            enabled: marked
+        ) {
+            guard let selection else { return }
+            edit.cut(selection)
+            self.selection = nil
         }
-        .disabled(selection?.isEmpty ?? true)
 
-        IconButton(symbol: "arrow.uturn.backward", help: "Put every cut back") {
+        IconButton(
+            symbol: "crop",
+            help: marked
+                ? "Keep only the marked stretch, trimming both ends"
+                : "Drag across the strip to mark a stretch, then keep only it",
+            enabled: marked
+        ) {
+            guard let selection else { return }
+            edit.keepOnly(from: selection.start, to: selection.end)
+            self.selection = nil
+        }
+
+        IconButton(
+            symbol: "arrow.uturn.backward", help: "Put every cut back",
+            enabled: !edit.isUnchanged
+        ) {
             edit.restoreEverything()
             selection = nil
         }
-        .disabled(edit.isUnchanged)
 
-        IconButton(symbol: "xmark", help: "Stop trimming and put every cut back") {
+        IconButton(symbol: "xmark", help: "Stop editing and put every cut back") {
             edit.restoreEverything()
             selection = nil
             editing = false
@@ -128,7 +139,11 @@ struct ClipEditor: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .disabled(edit.isUnchanged || edit.isEverythingCut)
-        .help("Save the trimmed clip, as a new file or in the original's place")
+        .opacity(edit.isUnchanged || edit.isEverythingCut ? 0.35 : 1)
+        .help(
+            edit.isUnchanged
+                ? "Cut something out first, then save it"
+                : "Save the edited clip, as a new file or in the original's place")
     }
 
     /// "0:42.0 of 1:03.5 · 2 cuts", so the cost of the cuts is visible.
@@ -164,14 +179,18 @@ struct ClipEditor: View {
         player.pause()
         export = 0
         defer { export = nil }
-        let edit = self.edit
-        let url = self.url
         do {
             let result = try await ClipExporter.export(url, edit: edit, to: destination) { fraction in
                 Task { @MainActor in export = fraction }
             }
-            if let trashed = result.trashedOriginal { onReplaced(trashed) }
-            self.edit = ClipEdit(duration: self.edit.keptDuration)
+            if let trashed = result.trashedOriginal {
+                store.noteReplacedClip(trashed)
+            } else {
+                // Saved beside the original: the shoot has to be told, or the
+                // new clip exists only on the card until the folder is
+                // re-opened.
+                store.noteNewClip(at: result.url, from: url)
+            }
             await load()
         } catch {
             failure = error.localizedDescription

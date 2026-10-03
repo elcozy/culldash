@@ -54,6 +54,12 @@ struct IconButton: View {
     let symbol: String
     let help: String
     var active = false
+    /// Greys the icon out and stops it responding. Passed in rather than
+    /// applied outside with `.disabled`, so the tooltip sits outside the
+    /// disabled part of the view: AppKit shows no tooltip for a disabled
+    /// control, and a greyed-out icon is exactly the one whose tooltip you
+    /// want, to find out why it is greyed out.
+    var enabled = true
     let action: () -> Void
 
     var body: some View {
@@ -66,6 +72,9 @@ struct IconButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        // A plain button is not dimmed by being disabled, so it is dimmed here.
+        .opacity(enabled ? 1 : 0.35)
         .help(help)
     }
 }

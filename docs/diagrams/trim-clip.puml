@@ -9,7 +9,7 @@ participant PhotoTrash as Trash
 participant LibraryStore as Store
 
 P -> Editor: open a clip full screen
-Editor --> P: the clip, its length, and a scissors button
+Editor --> P: the clip, its length, and a pencil button
 P -> Editor: Space
 Editor -> Editor: play or pause
 note right of Editor
@@ -20,7 +20,7 @@ note right of Editor
   still goes back to the grid.
 end note
 
-P -> Editor: scissors
+P -> Editor: pencil
 Editor -> Edit: ClipEdit(duration: the clip's length)
 Editor --> P: the strip of time appears
 
@@ -57,6 +57,9 @@ group Saving
     mark, as they do in QuickTime.
   end note
   Exporter --> Editor: <name>-trimmed.MOV beside the original
+  Editor -> Store: noteNewClip(at:from:)
+  Store -> Store: insert beside the source, with its\ncapture date and its decisions
+  Store --> P: the new clip is in the grid, next to the one it came from
 
   alt replacing the original
     Exporter -> Trash: trash(original)

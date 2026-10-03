@@ -60,6 +60,27 @@ extension LibraryStore {
     }
 
     /// ⌘Z: puts the last trashed photos back, in their places.
+    /// A trimmed copy was written beside the clip it came from. It joins the
+    /// shoot straight away, so going back to the grid shows it rather than
+    /// leaving it to be found on the card later.
+    ///
+    /// It takes the original's capture date and its decisions, so it sorts in
+    /// right beside its source (the name breaks the tie, and "C0007" comes
+    /// before "C0007-trimmed") and arrives already picked or rated the way the
+    /// clip it came from was. The selection does not move.
+    func noteNewClip(at url: URL, from original: URL) {
+        guard !photos.contains(where: { $0.primary == url }),
+            let index = photos.firstIndex(where: { $0.primary == original })
+        else { return }
+        let source = photos[index]
+        photos.insert(
+            Photo(
+                primary: url, kind: .video, modified: source.modified,
+                culling: source.culling, camera: source.camera),
+            at: index + 1)
+        show("\(url.lastPathComponent) added to the shoot")
+    }
+
     /// A clip was replaced by a shorter edit and the original went to the
     /// Trash. It joins the undo history, so Cmd-Z puts the long one back just
     /// as it would a rejected frame.

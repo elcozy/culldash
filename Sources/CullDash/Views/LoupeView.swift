@@ -10,10 +10,7 @@ struct LoupeView: View {
             VStack(spacing: 0) {
                 Group {
                     if photo.kind == .video {
-                        ClipEditor(url: photo.primary) { trashed in
-                            store.noteReplacedClip(trashed)
-                        }
-                        .padding(16)
+                        ClipEditor(url: photo.primary).padding(16)
                     } else if store.zoomed {
                         ZoomedImage(url: photo.primary)
                     } else {

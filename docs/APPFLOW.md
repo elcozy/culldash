@@ -280,9 +280,9 @@ rather than leaving the view, and Return still goes back to the grid. Space
 reaches the player through a counter on the store, because the player belongs
 to the view while the keys are read from the window.
 
-Trimming starts with the scissors button under the clip, which brings out a
-strip of time; until then the strip stays out of the way, since most clips are
-only watched. Dragging across the strip marks a stretch; a click without a drag
+Editing starts with the pencil button under the clip, which brings out a strip
+of time; until then the strip stays out of the way, since most clips are only
+watched. Dragging across the strip marks a stretch; a click without a drag
 moves the playhead. The
 scissors cut the marked stretch out and close the gap, the crop keeps only it
 and throws both ends away, the arrow puts every cut back, and the cross stops
@@ -303,6 +303,12 @@ beside the original as `<name>-trimmed.MOV`, or takes the original's place, in
 which case the original goes to that drive's Trash and joins the undo history,
 so ⌘Z brings the full-length clip back.
 
+Either way the shoot is told about it. A new clip is inserted beside the one it
+came from, carrying that clip's capture date and its decisions, so it sorts in
+next to its source and arrives already flagged and rated the same; the
+selection does not move. Without that the file would exist only on the card
+until the folder was opened again.
+
 <!-- diagram:trim-clip -->
 ![trim-clip](diagrams/trim-clip.svg)
 
@@ -320,7 +326,7 @@ participant PhotoTrash as Trash
 participant LibraryStore as Store
 
 P -> Editor: open a clip full screen
-Editor --> P: the clip, its length, and a scissors button
+Editor --> P: the clip, its length, and a pencil button
 P -> Editor: Space
 Editor -> Editor: play or pause
 note right of Editor
@@ -331,7 +337,7 @@ note right of Editor
   still goes back to the grid.
 end note
 
-P -> Editor: scissors
+P -> Editor: pencil
 Editor -> Edit: ClipEdit(duration: the clip's length)
 Editor --> P: the strip of time appears
 
@@ -368,6 +374,9 @@ group Saving
     mark, as they do in QuickTime.
   end note
   Exporter --> Editor: <name>-trimmed.MOV beside the original
+  Editor -> Store: noteNewClip(at:from:)
+  Store -> Store: insert beside the source, with its\ncapture date and its decisions
+  Store --> P: the new clip is in the grid, next to the one it came from
 
   alt replacing the original
     Exporter -> Trash: trash(original)

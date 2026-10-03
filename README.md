@@ -119,16 +119,20 @@ the result, so it opens on any Mac with no prompt. `security find-identity -v
 ## Trimming clips
 
 Open a video full screen and it plays like any other clip: **Space** plays and
-pauses rather than leaving the view. The scissors button under it starts
-trimming, which brings out a strip of time; until then the strip stays out of
-the way. Drag across the strip to mark a stretch, or click to move the
-playhead. Then:
+pauses rather than leaving the view. The pencil button under it starts editing,
+which brings out a strip of time; until then the strip stays out of the way.
+Drag across the strip to mark a stretch, or click to move the playhead. Then:
 
 - **scissors** — cut the marked stretch out and close the gap
 - **crop** — keep only the marked stretch, trimming both ends
 - **arrow** — put every cut back
 - **save** — write it as a new clip, or in the original's place
-- **xmark** — stop trimming and put every cut back
+- **xmark** — stop editing and put every cut back
+
+Saving as a new clip adds it to the shoot straight away, right beside the clip
+it came from and carrying its flag, rating and label over, so going back to the
+grid shows it where you would expect rather than leaving it to be found on the
+card later.
 
 Saving copies the original streams rather than re-encoding, so it is quick and
 loses no quality. In exchange each cut lands on the keyframe before the mark,
