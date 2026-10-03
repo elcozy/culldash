@@ -73,6 +73,26 @@ public enum StorageScanner {
         return found
     }
 
+    /// The same drives with their free space brought up to date.
+    ///
+    /// Used by the start screen's refresh, which runs every few seconds.
+    /// `locations()` is not used for that: it looks inside each volume for a
+    /// DCIM folder to tell a camera card from a drive, and reading inside a
+    /// removable volume is exactly what macOS asks permission for. Doing that
+    /// on a timer put the permission sheet back on screen every few seconds
+    /// until it was granted. Free space comes from the file system itself,
+    /// which needs no permission, so the poll stays on this side of the line.
+    public static func updatingSpace(_ locations: [StorageLocation]) -> [StorageLocation] {
+        locations.map { location in
+            guard location.kind != .mac else { return location }
+            let space = freeSpace(at: location.url)
+            return StorageLocation(
+                url: location.url, name: location.name, kind: location.kind,
+                available: space.available ?? location.available,
+                total: space.total ?? location.total)
+        }
+    }
+
     /// Free and total space asked of the file system each time. URL resource
     /// values are cached by macOS, so after deleting photos they kept
     /// showing the old free space.

@@ -22,6 +22,18 @@
     <string>14.0</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.photography</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>CullDash reads the photos and videos on your cards and external drives so you can cull them. Nothing is imported or copied.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>CullDash opens shoots you keep on your Desktop. Nothing is imported or copied.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>CullDash opens shoots you keep in Documents. Nothing is imported or copied.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>CullDash opens shoots you keep in Downloads. Nothing is imported or copied.</string>
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>CullDash opens shoots kept on network drives. Nothing is imported or copied.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>CullDash reads photos from your Pictures folder. Nothing is imported or copied.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>

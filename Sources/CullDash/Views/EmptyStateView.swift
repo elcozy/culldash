@@ -25,10 +25,13 @@ struct EmptyStateView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear(perform: refresh)
         // Free space changes as photos are trashed or copied; keep it current.
+        // Only the space: re-reading the drives themselves would ask for
+        // permission again every time round. Plugging a drive in or out is
+        // caught by the mount notifications below.
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
-                locations = StorageScanner.locations()
+                locations = StorageScanner.updatingSpace(locations)
             }
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in refresh() }
