@@ -46,10 +46,16 @@ final class LibraryStore {
     var burstProgress: Double?
     var burstTask: Task<Void, Never>?
 
+    /// The cameras the shoot was shot on, in name order, filled in by the
+    /// background pass as it reads each photo. The Filters menu lists these.
+    var cameras: [String] = []
+    /// How far that pass has got, 0 to 1, or nil once every photo is read.
+    var cameraProgress: Double?
+    var warmTask: Task<Void, Never>?
+
     /// Sidecar writes run one after another, so two quick key presses on the
     /// same photo can never land in the wrong order.
     private var lastSave: Task<Void, Never>?
-    private var warmTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
 
     var visible: [Photo] { photos.filter { filter.matches($0) } }
@@ -63,7 +69,9 @@ final class LibraryStore {
     var selectedIndex: Int? { visible.firstIndex { $0.id == selectedID } }
 
     func count(_ flag: FlagFilter) -> Int {
-        photos.filter { PhotoFilter(flag: flag, minStars: filter.minStars, kind: filter.kind, search: filter.search).matches($0) }.count
+        var counting = filter
+        counting.flag = flag
+        return photos.filter { counting.matches($0) }.count
     }
 
     // MARK: Opening
@@ -98,6 +106,7 @@ final class LibraryStore {
             zoomed = false
             trashHistory = []
             groupBursts = false
+            cameras = []
             warmThumbnails()
             RecentShoots.remember(title: title, folders: folders, root: root)
         } catch {
@@ -117,19 +126,8 @@ final class LibraryStore {
         mode = .grid
         zoomed = false
         groupBursts = false
-    }
-
-    /// Loads every thumbnail in the background, in order, so scrolling the
-    /// grid or coming back to it never waits on a spinner.
-    private func warmThumbnails() {
-        warmTask?.cancel()
-        let urls = photos.map(\.primary)
-        warmTask = Task.detached(priority: .utility) {
-            for url in urls {
-                if Task.isCancelled { return }
-                _ = PreviewLoader.shared.preview(for: url, maxPixels: PreviewSize.thumbnail)
-            }
-        }
+        cameras = []
+        cameraProgress = nil
     }
 
     // MARK: Decisions

@@ -9,40 +9,43 @@ public enum FolderScanner {
 
     /// Several folders as one shoot, e.g. every `DCIM/1xxMSDCF` on a card.
     public static func scan(_ folders: [URL]) throws -> [Photo] {
-        var groups: [String: [URL]] = [:]
+        var groups: [String: [DirectoryEntry]] = [:]
+        // Which photos have a sidecar, so the other thousands are never opened
+        // looking for one that was never written.
+        var sidecars: Set<String> = []
         for folder in folders {
-            // `.skipsHiddenFiles` also drops the `._DSC01850.ARW` files macOS
-            // leaves on exFAT drives, which are metadata, not photos.
-            let urls = try FileManager.default.contentsOfDirectory(
-                at: folder,
-                includingPropertiesForKeys: [.contentModificationDateKey],
-                options: [.skipsHiddenFiles]
-            )
-            // Keyed by full path, since cameras reuse names across folders.
-            for url in urls where FileKind(url: url) != nil {
-                groups[url.deletingPathExtension().path.lowercased(), default: []].append(url)
+            // The listing leaves out hidden files, which on an exFAT card also
+            // drops the `._DSC01850.ARW` companions macOS writes beside every
+            // file: metadata, not photos.
+            for entry in try DirectoryListing.entries(of: folder) where !entry.isDirectory {
+                // Keyed by folder and name, since cameras reuse names across folders.
+                let key = "\(folder.path)/\(entry.stem)"
+                if entry.fileExtension == "xmp" {
+                    sidecars.insert(key)
+                } else if FileKind(extension: entry.fileExtension) != nil {
+                    groups[key, default: []].append(entry)
+                }
             }
         }
-        return groups.values.compactMap(makePhoto).sorted(by: captureOrder)
+        return groups.compactMap { makePhoto($0.value, hasSidecar: sidecars.contains($0.key)) }
+            .sorted(by: captureOrder)
     }
 
     /// The RAW leads when there is one; the camera JPEG rides along with it.
-    static func makePhoto(_ files: [URL]) -> Photo? {
-        let sorted = files.sorted { $0.lastPathComponent < $1.lastPathComponent }
+    static func makePhoto(_ files: [DirectoryEntry], hasSidecar: Bool) -> Photo? {
+        let sorted = files.sorted { $0.name < $1.name }
         // A RAW leads its JPEG; a still leads the clip of an iPhone Live Photo.
-        guard let primary = sorted.first(where: { FileKind(url: $0) == .raw })
-            ?? sorted.first(where: { FileKind(url: $0) == .image }) ?? sorted.first,
-            let kind = FileKind(url: primary)
+        guard let primary = sorted.first(where: { FileKind(extension: $0.fileExtension) == .raw })
+            ?? sorted.first(where: { FileKind(extension: $0.fileExtension) == .image }) ?? sorted.first,
+            let kind = FileKind(extension: primary.fileExtension)
         else { return nil }
-        let modified = (try? primary.resourceValues(forKeys: [.contentModificationDateKey]))?
-            .contentModificationDate ?? .distantPast
         var photo = Photo(
-            primary: primary,
-            companions: sorted.filter { $0 != primary },
+            primary: primary.url,
+            companions: sorted.filter { $0.url != primary.url }.map(\.url),
             kind: kind,
-            modified: modified
+            modified: primary.modified
         )
-        photo.culling = XMPSidecar.read(photo.sidecar) ?? Culling()
+        if hasSidecar { photo.culling = XMPSidecar.read(photo.sidecar) ?? Culling() }
         return photo
     }
 

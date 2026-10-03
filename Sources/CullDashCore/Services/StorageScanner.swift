@@ -110,28 +110,32 @@ public enum StorageScanner {
     ) {
         guard budget > 0 else { return }
         budget -= 1
-        guard
-            let entries = try? FileManager.default.contentsOfDirectory(
-                at: folder, includingPropertiesForKeys: [.isDirectoryKey, .isPackageKey], options: [.skipsHiddenFiles])
-        else { return }
-        func names(_ kinds: Set<FileKind>) -> Set<String> {
-            Set(entries.filter { FileKind(url: $0).map(kinds.contains) == true }
-                .map { $0.deletingPathExtension().lastPathComponent.lowercased() })
+        guard let entries = try? DirectoryListing.entries(of: folder) else { return }
+        // A RAW and its camera JPEG are one photo, so each is counted by the
+        // name they share rather than by file.
+        var photos: Set<String> = []
+        var videos: Set<String> = []
+        for entry in entries where !entry.isDirectory {
+            switch FileKind(extension: entry.fileExtension) {
+            case .raw, .image: photos.insert(entry.stem)
+            case .video: videos.insert(entry.stem)
+            case nil: continue
+            }
         }
-        let photos = names([.raw, .image])
-        let videos = names([.video]).subtracting(photos)
+        videos.subtract(photos)
         if !photos.isEmpty || !videos.isEmpty {
             let path = folder.path.dropFirst(root.path.count).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             results.append(ShootFolder(url: folder, path: path.isEmpty ? "/" : path, photoCount: photos.count, videoCount: videos.count))
             return
         }
         guard depth < maxDepth else { return }
-        for entry in entries {
-            let values = try? entry.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
-            guard values?.isDirectory == true, values?.isPackage != true,
-                !skippedFolders.contains(entry.lastPathComponent.lowercased())
+        for entry in entries where entry.isDirectory {
+            // Asking whether a folder is a package needs LaunchServices, so it
+            // is asked only of the handful of folders, never of the files.
+            guard !skippedFolders.contains(entry.name.lowercased()),
+                (try? entry.url.resourceValues(forKeys: [.isPackageKey]))?.isPackage != true
             else { continue }
-            visit(entry, root: root, depth: depth + 1, maxDepth: maxDepth, budget: &budget, into: &results)
+            visit(entry.url, root: root, depth: depth + 1, maxDepth: maxDepth, budget: &budget, into: &results)
         }
     }
 }

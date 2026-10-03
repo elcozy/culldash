@@ -27,7 +27,7 @@ struct ToolStrip: View {
             )
             .fixedSize()
 
-            filtersMenu
+            FiltersMenu()
 
             SimilarToggle()
 
@@ -60,29 +60,6 @@ struct ToolStrip: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 44)
-    }
-
-    private var filtersMenu: some View {
-        @Bindable var store = store
-        return Menu {
-            Picker("Rating", selection: $store.filter.minStars) {
-                ForEach(0...5, id: \.self) { stars in
-                    Text(stars == 0 ? "Any rating" : "\(stars)★ and up").tag(stars)
-                }
-            }
-            .pickerStyle(.inline)
-            Picker("Files", selection: $store.filter.kind) {
-                ForEach(KindFilter.allCases, id: \.self) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.inline)
-            Divider()
-            Toggle("Auto-advance after a decision", isOn: $store.autoAdvance)
-        } label: {
-            Text(store.filter.extraCount == 0 ? "Filters" : "Filters · \(store.filter.extraCount)")
-        }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .help("Filter by stars or file kind; auto-advance")
     }
 }
 

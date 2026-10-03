@@ -1,0 +1,35 @@
+@startuml zoom
+title Looking closely: zoom, pan and the minimap
+actor Photographer as P
+participant LoupeView as Loupe
+participant PreviewLoader as PL
+participant ZoomScrollView as Scroll
+participant ZoomController as Ctl
+participant ZoomMinimap as Map
+
+P -> Loupe: Z, or double-click
+Loupe -> PL: fullResolution(for: url)
+PL --> Loupe: the RAW decoded whole (~750 ms)
+Loupe -> Scroll: show(image) at 100%, pixel for pixel
+
+group Zooming
+  P -> Scroll: mouse wheel (or cmd/alt + scroll)
+  Scroll -> Scroll: scale around the pointer,\nso the pixel under it stays put
+  P -> Scroll: pinch on a trackpad
+  Scroll -> Scroll: AppKit magnification
+  P -> Scroll: two-finger scroll on a trackpad
+  Scroll -> Scroll: pan, as everywhere else
+end
+
+group Panning
+  P -> Scroll: drag
+  Scroll -> Scroll: move the photo under the pointer
+end
+
+Scroll -> Ctl: scale, fit scale, visible rect
+Ctl -> Map: the part on screen, as a fraction
+Map --> P: the whole photo small, with a box round where you are
+P -> Map: click or drag inside it
+Map -> Ctl: centre(on:)
+Ctl -> Scroll: scroll there
+@enduml

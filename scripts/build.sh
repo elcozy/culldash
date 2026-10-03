@@ -12,6 +12,9 @@ cd "$(dirname "$0")/.."
 
 export SDKROOT="${SDKROOT:-$(scripts/sdk.sh)}"
 FRAMEWORKS=/Library/Developer/CommandLineTools/Library/Developer/Frameworks
+# Testing.framework loads lib_TestingInterop.dylib from here, and nothing on
+# the default search path points at it, so the test binary is told where.
+TESTING_LIBS=/Library/Developer/CommandLineTools/Library/Developer/usr/lib
 OUT=build/obj
 mkdir -p "$OUT"
 
@@ -33,6 +36,7 @@ EOF
     swiftc -module-name CullDashCoreTests -parse-as-library -I "$OUT" -L "$OUT" -lCullDashCore \
         -plugin-path /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing \
         -F "$FRAMEWORKS" -framework Testing -Xlinker -rpath -Xlinker "$FRAMEWORKS" \
+        -Xlinker -rpath -Xlinker "$TESTING_LIBS" \
         Tests/CullDashCoreTests/*.swift "$OUT/TestMain.swift" -o "$OUT/tests"
     "$OUT/tests"
 }

@@ -71,19 +71,29 @@ struct ClipPlayer: View {
     }
 }
 
-/// The RAW decoded at full size and shown pixel for pixel, for checking focus.
+/// The RAW decoded at full size, to be pushed around and zoomed into for
+/// checking focus. Starts pixel for pixel; the wheel, a pinch or the buttons
+/// take it between the whole photo and 8× its pixels.
 struct ZoomedImage: View {
     let url: URL
     @State private var image: CGImage?
-    @Environment(\.displayScale) private var displayScale
+    @State private var controller = ZoomController()
 
     var body: some View {
         ZStack {
             if let image {
-                ScrollView([.horizontal, .vertical]) {
-                    Image(decorative: image, scale: displayScale)
-                }
-                .defaultScrollAnchor(.center)
+                ZoomableImage(image: image, controller: controller)
+                    .overlay(alignment: .bottomTrailing) {
+                        HStack(alignment: .bottom, spacing: 10) {
+                            ZoomControls(controller: controller)
+                            if controller.isZoomedIn {
+                                ZoomMinimap(image: image, controller: controller)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .bottomTrailing)))
+                            }
+                        }
+                        .padding(16)
+                        .animation(.easeOut(duration: 0.15), value: controller.isZoomedIn)
+                    }
             } else {
                 VStack(spacing: 8) {
                     ProgressView().controlSize(.small)

@@ -14,7 +14,12 @@ public enum FileKind: Hashable, Sendable {
     static let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "mts", "m2ts", "avi"]
 
     public init?(url: URL) {
-        let ext = url.pathExtension.lowercased()
+        self.init(extension: url.pathExtension.lowercased())
+    }
+
+    /// From an extension already lowercased, so a directory listing can judge
+    /// thousands of files without building a URL for each one.
+    public init?(extension ext: String) {
         if Self.rawExtensions.contains(ext) {
             self = .raw
         } else if Self.imageExtensions.contains(ext) {
@@ -35,13 +40,22 @@ public struct Photo: Identifiable, Hashable, Sendable {
     public let kind: FileKind
     public let modified: Date
     public var culling: Culling
+    /// The camera model out of EXIF, e.g. "ILCE-6400A". Reading it means
+    /// opening the file, which on a card or a hard drive is slow enough that
+    /// it is filled in by the background pass that loads thumbnails rather
+    /// than when the shoot opens; until then it is nil.
+    public var camera: String?
 
-    public init(primary: URL, companions: [URL] = [], kind: FileKind, modified: Date, culling: Culling = Culling()) {
+    public init(
+        primary: URL, companions: [URL] = [], kind: FileKind, modified: Date,
+        culling: Culling = Culling(), camera: String? = nil
+    ) {
         self.primary = primary
         self.companions = companions
         self.kind = kind
         self.modified = modified
         self.culling = culling
+        self.camera = camera
     }
 
     public var id: URL { primary }

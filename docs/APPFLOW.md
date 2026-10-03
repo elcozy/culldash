@@ -86,9 +86,19 @@ Places --> Maps
 
 The start screen lists cards (including the Mac's own SD slot), drives and
 folders on this Mac. Opening a drive searches at most three levels and 400
-folders, so even a large archive drive answers in seconds, and skips camera
-housekeeping folders. A folder, or every folder on a card at once, is then
-scanned in the background and its thumbnails are warmed so the grid never waits.
+folders, and skips camera housekeeping folders. A folder, or every folder on a
+card at once, is then scanned in the background and its thumbnails are warmed
+so the grid never waits.
+
+Every folder is read through `DirectoryListing`, which asks the file system for
+names, kinds and modification dates together, in batches, with
+`getattrlistbulk`. `FileManager.contentsOfDirectory` fetches attributes one
+file at a time, and on an external drive that is a seek each: a 5,352-file card
+folder on a USB hard drive took 54 seconds to list that way, cold, against
+33 milliseconds in bulk. Opening a whole 8,240-photo drive went from 175
+seconds to under half a second on the same hardware. The same listing also
+tells `FolderScanner` which photos have an XMP sidecar, so it opens only those
+rather than probing for a file beside every frame.
 
 <!-- diagram:open-shoot -->
 ![open-shoot](diagrams/open-shoot.svg)
@@ -101,6 +111,7 @@ title Opening a shoot: from the start screen to the grid
 actor Photographer as P
 participant "Start screen" as Start
 participant StorageScanner as SS
+participant DirectoryListing as DL
 participant LibraryStore as Store
 participant FolderScanner as FS
 participant XMPSidecar as XMP
@@ -113,17 +124,26 @@ SS -> Card: mounted volumes (external, removable, SD slot)
 Start <-- SS: cards, drives, Pictures, Movies...
 P -> Start: open a drive / Open all
 Start -> SS: shootFolders(in: drive)
-SS -> Card: read up to 3 levels, 400 folders,\nskip THMBNL / SUB / GENERAL
+SS -> DL: entries(of: folder)
+DL -> Card: getattrlistbulk: names, kind and\nmodified date, a few thousand per call
+note right of DL
+  Never FileManager.contentsOfDirectory: that
+  fetches attributes a file at a time, which on
+  a USB drive is a seek each. A 5,352-file card
+  folder took 54 s that way, 33 ms this way.
+end note
+SS -> SS: up to 3 levels, 400 folders,\nskip THMBNL / SUB / GENERAL
 Start <-- SS: DCIM/100MSDCF 3,311 photos\nPRIVATE/M4ROOT/CLIP 42 videos
 P -> Start: pick folder(s)
 Start -> Store: open(folders)
 Store -> FS: scan(folders) (background)
-FS -> Card: list files, pair same-named RAW + JPEG
-FS -> XMP: read existing sidecars
+FS -> DL: entries(of: folder)
+FS -> FS: pair same-named RAW + JPEG,\nmodified date came with the listing
+FS -> XMP: read only the sidecars the listing saw
 Store <-- FS: photos in capture order
-Store -> PL: warm every thumbnail (background)
+Store -> PL: one background pass: every thumbnail,\nand the camera out of EXIF while the file is open
 PL -> Card: embedded JPEG preview (~30 ms), video frame
-Store --> P: grid
+Store --> P: grid, and the camera filter fills in as it goes
 @enduml
 ```
 
@@ -138,6 +158,17 @@ the photo's XMP sidecar through a queue that writes one file at a time, so two
 quick presses can never land out of order. Neighbouring previews load ahead in
 both directions; Z decodes the full RAW for a focus check.
 
+The flag segments, the star rating, the file kinds, the cameras and the name
+search all narrow the same list, so they combine: 3-stars-and-up RAW frames
+from one body is a single view. Ticking more than one choice inside a group
+widens that group instead — two cameras shows photos from either. The Filters
+button carries a count of the groups in play, and clears them all in one go.
+Cameras come from EXIF, which means opening each file, so they are collected by
+the background pass that is already loading thumbnails rather than by a pass of
+their own: a separate pass over an 8,240-photo drive took over two minutes even
+spread across every core, because it is a seek per file. The menu shows how far
+that reading has got while it runs.
+
 <!-- diagram:cull-loop -->
 ![cull-loop](diagrams/cull-loop.svg)
 
@@ -149,6 +180,7 @@ title Culling: one key per decision
 actor Photographer as P
 participant KeyCommands as K
 participant LibraryStore as S
+participant PhotoFilter as F
 participant "Save queue\n(one write at a time)" as Q
 participant XMPSidecar as X
 participant PreviewLoader as L
@@ -164,9 +196,77 @@ S -> Q: save(photo)
 Q -> X: write culldash:Flag, xmp:Rating, xmp:Label\n(reject = rating -1, Bridge's convention)
 S -> L: preload 5 neighbours each side
 L --> P: next photo shows at once
+
+group Narrowing the shoot
+  P -> S: flag segment, stars, file kinds, cameras, search
+  S -> F: matches(photo)
+  note right of F
+    Each part narrows what the one before it left,
+    so they combine. Ticking several inside one
+    part widens it: two cameras means either.
+  end note
+  F --> P: the photos left
+end
+
 P -> K: Z
 K -> S: toggleZoom
 S -> L: decode the full RAW (~750 ms)
+@enduml
+```
+
+</details>
+<!-- /diagram -->
+
+## Looking closely
+
+Z, or a double-click, decodes the RAW whole and shows it pixel for pixel. From
+there a mouse wheel zooms around the pointer, a pinch zooms, a two-finger
+trackpad scroll pans, and dragging moves the photo under the pointer; the
+photo goes from fitting the window to eight times its own pixels, drawn
+unsmoothed above 100% so grain and focus read true. Once there is more photo
+than fits, a minimap appears in the corner with a box around the part on
+screen, and clicking or dragging inside it jumps there.
+
+<!-- diagram:zoom -->
+![zoom](diagrams/zoom.svg)
+
+<details><summary>PlantUML source</summary>
+
+```plantuml
+@startuml zoom
+title Looking closely: zoom, pan and the minimap
+actor Photographer as P
+participant LoupeView as Loupe
+participant PreviewLoader as PL
+participant ZoomScrollView as Scroll
+participant ZoomController as Ctl
+participant ZoomMinimap as Map
+
+P -> Loupe: Z, or double-click
+Loupe -> PL: fullResolution(for: url)
+PL --> Loupe: the RAW decoded whole (~750 ms)
+Loupe -> Scroll: show(image) at 100%, pixel for pixel
+
+group Zooming
+  P -> Scroll: mouse wheel (or cmd/alt + scroll)
+  Scroll -> Scroll: scale around the pointer,\nso the pixel under it stays put
+  P -> Scroll: pinch on a trackpad
+  Scroll -> Scroll: AppKit magnification
+  P -> Scroll: two-finger scroll on a trackpad
+  Scroll -> Scroll: pan, as everywhere else
+end
+
+group Panning
+  P -> Scroll: drag
+  Scroll -> Scroll: move the photo under the pointer
+end
+
+Scroll -> Ctl: scale, fit scale, visible rect
+Ctl -> Map: the part on screen, as a fraction
+Map --> P: the whole photo small, with a box round where you are
+P -> Map: click or drag inside it
+Map -> Ctl: centre(on:)
+Ctl -> Scroll: scroll there
 @enduml
 ```
 

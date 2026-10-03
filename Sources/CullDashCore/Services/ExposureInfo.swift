@@ -33,6 +33,21 @@ public struct ExposureInfo: Hashable, Sendable {
         self.captured = captured
     }
 
+    /// Just the camera model, for the filter list.
+    ///
+    /// Reading it opens the file, so this is called from the background pass
+    /// that loads thumbnails: by then the file is in the page cache and the
+    /// second read is nearly free, where a pass of its own over a card would
+    /// be a seek per photo. A clip carries no model worth opening it for.
+    public static func cameraModel(_ url: URL) -> String? {
+        guard FileKind(url: url) != .video,
+            let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+            let tiff = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
+        else { return nil }
+        return (tiff[kCGImagePropertyTIFFModel] as? String)?.trimmingCharacters(in: .whitespaces)
+    }
+
     public static func read(_ url: URL) -> ExposureInfo {
         if FileKind(url: url) == .video { return readVideo(url) }
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),

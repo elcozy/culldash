@@ -37,8 +37,30 @@ def ensure_jar() -> None:
     urllib.request.urlretrieve(JAR_URL, JAR)
 
 
+def java() -> str:
+    """A java that runs on this machine.
+
+    `/usr/bin/java` follows whatever JDK is installed system-wide, which on an
+    Apple Silicon Mac can be an Intel-only build; without Rosetta that fails
+    with "Bad CPU type in executable". Homebrew's is checked first because it
+    matches the machine.
+    """
+    candidates = [
+        "/opt/homebrew/opt/openjdk/bin/java",
+        "/usr/local/opt/openjdk/bin/java",
+        "java",
+    ]
+    for candidate in candidates:
+        try:
+            subprocess.run([candidate, "-version"], capture_output=True, check=True)
+            return candidate
+        except (OSError, subprocess.CalledProcessError):
+            continue
+    sys.exit("No usable Java. Install one with: brew install openjdk")
+
+
 def render(files: list[pathlib.Path]) -> None:
-    subprocess.run(["java", "-jar", str(JAR), "-tsvg", "-failfast2", *map(str, files)], cwd=DIAGRAMS, check=True)
+    subprocess.run([java(), "-jar", str(JAR), "-tsvg", "-failfast2", *map(str, files)], cwd=DIAGRAMS, check=True)
     for file in files:
         svg = file.with_suffix(".svg").read_text()
         if re.search(r"Syntax Error|Cannot find Graphviz", svg, re.I):

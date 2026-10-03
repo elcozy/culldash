@@ -53,16 +53,53 @@ import Testing
     }
 
     @Test func filterMatchesFlagsStarsKindAndName() {
-        let raw = Photo(primary: URL(fileURLWithPath: "/c/DSC01612.ARW"), kind: .raw, modified: .now, culling: Culling(flag: .pick, rating: 3))
-        let jpeg = Photo(primary: URL(fileURLWithPath: "/c/DSCF0001.JPG"), kind: .image, modified: .now)
+        let raw = Photo(
+            primary: URL(fileURLWithPath: "/c/DSC01612.ARW"), kind: .raw, modified: .now,
+            culling: Culling(flag: .pick, rating: 3), camera: "ILCE-6400A")
+        let jpeg = Photo(
+            primary: URL(fileURLWithPath: "/c/DSCF0001.JPG"), kind: .image, modified: .now,
+            camera: "X-T30 II")
         #expect(PhotoFilter(flag: .picks).matches(raw))
         #expect(!PhotoFilter(flag: .rejects).matches(raw))
         #expect(PhotoFilter(minStars: 3).matches(raw) && !PhotoFilter(minStars: 4).matches(raw))
         #expect(PhotoFilter(flag: .unflagged).matches(jpeg))
-        #expect(PhotoFilter(kind: .raw).matches(raw) && !PhotoFilter(kind: .raw).matches(jpeg))
-        #expect(PhotoFilter(kind: .other).matches(jpeg))
+        #expect(PhotoFilter(kinds: [.raw]).matches(raw) && !PhotoFilter(kinds: [.raw]).matches(jpeg))
+        #expect(PhotoFilter(kinds: [.image]).matches(jpeg))
         #expect(PhotoFilter(search: "01612").matches(raw) && !PhotoFilter(search: "01612").matches(jpeg))
         #expect(PhotoFilter(search: "dscf").matches(jpeg))
+    }
+
+    @Test func severalChoicesInOnePartWidenAndSeparatePartsNarrow() {
+        let raw = Photo(
+            primary: URL(fileURLWithPath: "/c/DSC01612.ARW"), kind: .raw, modified: .now,
+            culling: Culling(flag: .pick, rating: 3), camera: "ILCE-6400A")
+        let jpeg = Photo(
+            primary: URL(fileURLWithPath: "/c/DSCF0001.JPG"), kind: .image, modified: .now,
+            camera: "X-T30 II")
+        let clip = Photo(primary: URL(fileURLWithPath: "/c/C0001.MP4"), kind: .video, modified: .now)
+
+        // Two kinds chosen: either one is shown, the third is not.
+        let stills = PhotoFilter(kinds: [.raw, .image])
+        #expect(stills.matches(raw) && stills.matches(jpeg) && !stills.matches(clip))
+
+        // Two cameras chosen likewise.
+        let bothBodies = PhotoFilter(cameras: ["ILCE-6400A", "X-T30 II"])
+        #expect(bothBodies.matches(raw) && bothBodies.matches(jpeg))
+
+        // Different parts narrow each other: RAW *and* that one camera.
+        #expect(PhotoFilter(kinds: [.raw], cameras: ["ILCE-6400A"]).matches(raw))
+        #expect(!PhotoFilter(kinds: [.raw], cameras: ["X-T30 II"]).matches(raw))
+        // And they stack with stars and the name search.
+        #expect(PhotoFilter(minStars: 3, kinds: [.raw], cameras: ["ILCE-6400A"], search: "01612").matches(raw))
+        #expect(!PhotoFilter(minStars: 4, kinds: [.raw], cameras: ["ILCE-6400A"], search: "01612").matches(raw))
+
+        // A photo whose camera is not read yet is not claimed by a camera filter.
+        #expect(!PhotoFilter(cameras: ["ILCE-6400A"]).matches(clip))
+
+        #expect(PhotoFilter(minStars: 3, kinds: [.raw], cameras: ["ILCE-6400A"]).extraCount == 3)
+        var filter = PhotoFilter(flag: .picks, minStars: 3, kinds: [.raw], cameras: ["ILCE-6400A"], search: "dsc")
+        filter.clearExtras()
+        #expect(filter.isUnrestricted && filter.flag == .picks && filter.search == "dsc")
     }
 
     @Test func trashedPhotosComeBack() throws {

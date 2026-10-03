@@ -3,6 +3,7 @@ title Culling: one key per decision
 actor Photographer as P
 participant KeyCommands as K
 participant LibraryStore as S
+participant PhotoFilter as F
 participant "Save queue\n(one write at a time)" as Q
 participant XMPSidecar as X
 participant PreviewLoader as L
@@ -18,6 +19,18 @@ S -> Q: save(photo)
 Q -> X: write culldash:Flag, xmp:Rating, xmp:Label\n(reject = rating -1, Bridge's convention)
 S -> L: preload 5 neighbours each side
 L --> P: next photo shows at once
+
+group Narrowing the shoot
+  P -> S: flag segment, stars, file kinds, cameras, search
+  S -> F: matches(photo)
+  note right of F
+    Each part narrows what the one before it left,
+    so they combine. Ticking several inside one
+    part widens it: two cameras means either.
+  end note
+  F --> P: the photos left
+end
+
 P -> K: Z
 K -> S: toggleZoom
 S -> L: decode the full RAW (~750 ms)

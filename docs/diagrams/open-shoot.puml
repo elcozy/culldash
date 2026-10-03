@@ -3,6 +3,7 @@ title Opening a shoot: from the start screen to the grid
 actor Photographer as P
 participant "Start screen" as Start
 participant StorageScanner as SS
+participant DirectoryListing as DL
 participant LibraryStore as Store
 participant FolderScanner as FS
 participant XMPSidecar as XMP
@@ -15,15 +16,24 @@ SS -> Card: mounted volumes (external, removable, SD slot)
 Start <-- SS: cards, drives, Pictures, Movies...
 P -> Start: open a drive / Open all
 Start -> SS: shootFolders(in: drive)
-SS -> Card: read up to 3 levels, 400 folders,\nskip THMBNL / SUB / GENERAL
+SS -> DL: entries(of: folder)
+DL -> Card: getattrlistbulk: names, kind and\nmodified date, a few thousand per call
+note right of DL
+  Never FileManager.contentsOfDirectory: that
+  fetches attributes a file at a time, which on
+  a USB drive is a seek each. A 5,352-file card
+  folder took 54 s that way, 33 ms this way.
+end note
+SS -> SS: up to 3 levels, 400 folders,\nskip THMBNL / SUB / GENERAL
 Start <-- SS: DCIM/100MSDCF 3,311 photos\nPRIVATE/M4ROOT/CLIP 42 videos
 P -> Start: pick folder(s)
 Start -> Store: open(folders)
 Store -> FS: scan(folders) (background)
-FS -> Card: list files, pair same-named RAW + JPEG
-FS -> XMP: read existing sidecars
+FS -> DL: entries(of: folder)
+FS -> FS: pair same-named RAW + JPEG,\nmodified date came with the listing
+FS -> XMP: read only the sidecars the listing saw
 Store <-- FS: photos in capture order
-Store -> PL: warm every thumbnail (background)
+Store -> PL: one background pass: every thumbnail,\nand the camera out of EXIF while the file is open
 PL -> Card: embedded JPEG preview (~30 ms), video frame
-Store --> P: grid
+Store --> P: grid, and the camera filter fills in as it goes
 @enduml
