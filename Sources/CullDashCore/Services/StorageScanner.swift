@@ -51,12 +51,13 @@ public enum StorageScanner {
             else { return nil }
             let isCard = values.volumeIsRemovable == true && values.volumeIsEjectable != false
                 && FileManager.default.fileExists(atPath: url.appendingPathComponent("DCIM").path)
+            let space = freeSpace(at: url)
             return StorageLocation(
                 url: url,
                 name: values.volumeName ?? url.lastPathComponent,
                 kind: isCard ? .card : .drive,
-                available: values.volumeAvailableCapacity.map(Int64.init),
-                total: values.volumeTotalCapacity.map(Int64.init)
+                available: space.available ?? values.volumeAvailableCapacity.map(Int64.init),
+                total: space.total ?? values.volumeTotalCapacity.map(Int64.init)
             )
         }
         .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -70,6 +71,17 @@ public enum StorageScanner {
             }
         }
         return found
+    }
+
+    /// Free and total space asked of the file system each time. URL resource
+    /// values are cached by macOS, so after deleting photos they kept
+    /// showing the old free space.
+    static func freeSpace(at url: URL) -> (available: Int64?, total: Int64?) {
+        guard let attributes = try? FileManager.default.attributesOfFileSystem(forPath: url.path) else { return (nil, nil) }
+        return (
+            (attributes[.systemFreeSize] as? NSNumber)?.int64Value,
+            (attributes[.systemSize] as? NSNumber)?.int64Value
+        )
     }
 
     /// Folders under `root` that directly contain photos, up to `maxDepth`

@@ -6,6 +6,8 @@ import CullDashCore
 struct StorageRow: View {
     let location: StorageLocation
     let isOpen: Bool
+    /// Bumped by refresh: the folder list is read again.
+    var generation = 0
     let onToggle: () -> Void
     /// The folders to open as one shoot, and the shoot's title.
     let onOpen: ([URL], String) -> Void
@@ -31,8 +33,12 @@ struct StorageRow: View {
             if isOpen { folderList.padding(.leading, 58).padding(.trailing, 10).padding(.bottom, 10) }
         }
         .overlay(alignment: .top) { Rectangle().fill(Theme.hairline).frame(height: 1) }
-        .task(id: isOpen) {
-            if isOpen { await loadFolders() }
+        // Read afresh each time the row opens or refresh is pressed, so
+        // counts follow photos added or trashed since.
+        .task(id: "\(isOpen)-\(generation)") {
+            guard isOpen else { return }
+            folders = nil
+            await loadFolders()
         }
     }
 

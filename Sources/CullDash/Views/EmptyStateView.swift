@@ -11,6 +11,9 @@ struct EmptyStateView: View {
     /// Only one drive is open at a time, so the list never floods.
     @State private var openID: StorageLocation.ID?
     @State private var spin = 0.0
+    /// Changed by the refresh button, so every drive row starts over and
+    /// counts its folders again.
+    @State private var generation = 0
 
     var body: some View {
         HStack(alignment: .top, spacing: 56) {
@@ -21,6 +24,13 @@ struct EmptyStateView: View {
         .padding(.vertical, 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear(perform: refresh)
+        // Free space changes as photos are trashed or copied; keep it current.
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                locations = StorageScanner.locations()
+            }
+        }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in refresh() }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didUnmountNotification)) { _ in refresh() }
     }
@@ -71,6 +81,7 @@ struct EmptyStateView: View {
                 Spacer()
                 Button {
                     withAnimation(.easeInOut(duration: 0.5)) { spin += 360 }
+                    generation += 1
                     refresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
@@ -88,7 +99,7 @@ struct EmptyStateView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(locations) { location in
-                        StorageRow(location: location, isOpen: openID == location.id) {
+                        StorageRow(location: location, isOpen: openID == location.id, generation: generation) {
                             withAnimation(.easeOut(duration: 0.15)) {
                                 openID = openID == location.id ? nil : location.id
                             }
