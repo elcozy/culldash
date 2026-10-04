@@ -43,7 +43,8 @@ public enum FolderScanner {
             primary: primary.url,
             companions: sorted.filter { $0.url != primary.url }.map(\.url),
             kind: kind,
-            modified: primary.modified
+            modified: primary.modified,
+            size: primary.size
         )
         if hasSidecar { photo.culling = XMPSidecar.read(photo.sidecar) ?? Culling() }
         return photo

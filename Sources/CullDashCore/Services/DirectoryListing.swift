@@ -7,17 +7,20 @@ public struct DirectoryEntry: Sendable {
     public let name: String
     public let isDirectory: Bool
     public let modified: Date
+    /// Bytes of file content. Zero for a folder.
+    public let size: Int64
     /// `arw` for `DSC01850.ARW`, lowercased.
     public let fileExtension: String
     /// `dsc01850` for `DSC01850.ARW`: the part a RAW, its camera JPEG and its
     /// XMP sidecar share, which is how they find each other.
     public let stem: String
 
-    init(folder: URL, name: String, isDirectory: Bool, modified: Date) {
+    init(folder: URL, name: String, isDirectory: Bool, modified: Date, size: Int64 = 0) {
         self.url = folder.appendingPathComponent(name, isDirectory: isDirectory)
         self.name = name
         self.isDirectory = isDirectory
         self.modified = modified
+        self.size = size
         // Split on the last dot by hand: building a URL per file to ask it the
         // same question costs more than the directory read itself.
         if let dot = name.lastIndex(of: "."), dot != name.startIndex {
@@ -66,6 +69,9 @@ public enum DirectoryListing {
             attrgroup_t(ATTR_CMN_RETURNED_ATTRS) | attrgroup_t(ATTR_CMN_NAME)
             | attrgroup_t(ATTR_CMN_OBJTYPE) | attrgroup_t(ATTR_CMN_MODTIME)
             | attrgroup_t(ATTR_CMN_FLAGS)
+        // Size rides along in the same call, so finding duplicates can bucket
+        // by it without a stat per file.
+        list.fileattr = attrgroup_t(ATTR_FILE_DATALENGTH)
         return list
     }
 
@@ -133,13 +139,21 @@ public enum DirectoryListing {
             field += MemoryLayout<UInt32>.size
         }
 
+        // File attributes come after every common one, and a folder has none.
+        var size: Int64 = 0
+        if returned.fileattr & attrgroup_t(ATTR_FILE_DATALENGTH) != 0 {
+            size = Int64(field.loadUnaligned(as: off_t.self))
+            field += MemoryLayout<off_t>.size
+        }
+
         guard !hidden, !name.hasPrefix("."), name != "..", !name.isEmpty else { return nil }
-        return DirectoryEntry(folder: folder, name: name, isDirectory: isDirectory, modified: modified)
+        return DirectoryEntry(
+            folder: folder, name: name, isDirectory: isDirectory, modified: modified, size: size)
     }
 
     /// For file systems without `getattrlistbulk`.
     private static func fallbackEntries(_ folder: URL) throws -> [DirectoryEntry] {
-        let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey]
+        let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
         let urls = try FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])
         return urls.map { url in
@@ -148,7 +162,8 @@ public enum DirectoryListing {
                 folder: folder,
                 name: url.lastPathComponent,
                 isDirectory: values?.isDirectory == true,
-                modified: values?.contentModificationDate ?? .distantPast
+                modified: values?.contentModificationDate ?? .distantPast,
+                size: Int64(values?.fileSize ?? 0)
             )
         }
     }

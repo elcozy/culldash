@@ -50,6 +50,14 @@ final class LibraryStore {
     var burstProgress: Double?
     var burstTask: Task<Void, Never>?
 
+    /// Exact duplicates: whether the shoot is narrowed to them, the groups
+    /// found, and progress while looking.
+    var showDuplicates = false { didSet { showDuplicatesChanged() } }
+    var duplicateOf: [Photo.ID: Int] = [:]
+    var duplicateGroups: [[Photo.ID]] = []
+    var duplicateProgress: Double?
+    var duplicateTask: Task<Void, Never>?
+
     /// The cameras the shoot was shot on, in name order, filled in by the
     /// background pass as it reads each photo. The Filters menu lists these.
     var cameras: [String] = []
@@ -62,7 +70,13 @@ final class LibraryStore {
     private var lastSave: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
 
-    var visible: [Photo] { photos.filter { filter.matches($0) } }
+    var visible: [Photo] {
+        let shown = photos.filter { filter.matches($0) }
+        // Looking for duplicates narrows the shoot to them, so the extras can
+        // be dealt with without the rest of the shoot in the way.
+        guard showDuplicates else { return shown }
+        return shown.filter { duplicateOf[$0.id] != nil }
+    }
 
     /// Every selected photo: the focused one plus any ⇧/⌘-clicked ones.
     var selectedIDs: Set<Photo.ID> {
@@ -78,66 +92,17 @@ final class LibraryStore {
     }
     var selectedIndex: Int? { visible.firstIndex { $0.id == selectedID } }
 
+    /// Only opening or closing a shoot changes these two, which is why their
+    /// setters stay shut to everything else and this is the one way in.
+    func adopt(folder: URL?, title: String) {
+        self.folder = folder
+        self.title = title
+    }
+
     func count(_ flag: FlagFilter) -> Int {
         var counting = filter
         counting.flag = flag
         return photos.filter { counting.matches($0) }.count
-    }
-
-    // MARK: Opening
-
-    func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.prompt = "Open"
-        panel.message = "Choose a folder of photos. Nothing is imported or copied."
-        if panel.runModal() == .OK, let url = panel.url {
-            Task { await open(url) }
-        }
-    }
-
-    func open(_ url: URL) async {
-        await open([url], root: url, title: url.lastPathComponent)
-    }
-
-    /// Several folders as one shoot, e.g. every photo folder on a card.
-    func open(_ folders: [URL], root: URL, title: String) async {
-        await flushSaves()
-        do {
-            let found = try await Task.detached(priority: .userInitiated) { try FolderScanner.scan(folders) }.value
-            folder = root
-            self.title = title
-            photos = found
-            filter = PhotoFilter()
-            extraSelection = []
-            selectedID = found.first?.id
-            mode = .grid
-            zoomed = false
-            trashHistory = []
-            groupBursts = false
-            cameras = []
-            warmThumbnails()
-            RecentShoots.remember(title: title, folders: folders, root: root)
-        } catch {
-            errorMessage = "Couldn't open \(title): \(error.localizedDescription)"
-        }
-    }
-
-    /// Back to the list of drives.
-    func closeFolder() async {
-        await flushSaves()
-        warmTask?.cancel()
-        burstTask?.cancel()
-        folder = nil
-        title = "CullDash"
-        photos = []
-        selectedID = nil
-        mode = .grid
-        zoomed = false
-        groupBursts = false
-        cameras = []
-        cameraProgress = nil
     }
 
     // MARK: Decisions

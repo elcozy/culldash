@@ -1,0 +1,41 @@
+@startuml duplicates
+title Exact duplicates: three passes, each narrower than the last
+start
+:every photo in the shoot;
+:group by file length;
+note right
+  Free: the length came with the folder
+  listing. Also a weaker filter than it
+  sounds — a camera writes RAWs of nearly
+  fixed length, and 1,799 of one card's
+  2,645 frames shared a length.
+end note
+if (any group bigger than one?) then (no)
+  :no duplicates;
+  stop
+endif
+:read 64 KB from each end of those files;
+note right
+  Two different frames differ within the
+  first few KB of pixel data, so this
+  separates them for a thousandth of
+  the reading.
+end note
+if (any group still bigger than one?) then (no)
+  :no duplicates;
+  stop
+endif
+:read those files whole, through SHA-256;
+note right
+  Only real copies get this far. Reading
+  them in full is the price of promising
+  that deleting the extras loses nothing.
+end note
+:groups of byte-identical photos;
+:the shoot narrows to them;
+:"Keep one of each" rejects every copy
+but one — a picked copy is the keeper;
+:the Trash button takes them together,
+and Cmd-Z brings them back;
+stop
+@enduml

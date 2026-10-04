@@ -30,8 +30,20 @@ struct ToolStrip: View {
             FiltersMenu()
 
             SimilarToggle()
+            DuplicatesToggle()
 
             Spacer(minLength: 8)
+
+            // Only while looking at duplicates, since it has nothing to act on
+            // otherwise and would be one more thing to read past.
+            if store.showDuplicates && store.extraCopyCount > 0 {
+                Button("Keep one of each") { store.keepOneOfEach() }
+                    .buttonStyle(ToneButtonStyle(.secondary))
+                    .fixedSize()
+                    .help(
+                        "Reject every copy but one in each set, then trash them together. "
+                            + "A copy you have picked is the one kept.")
+            }
 
             if store.selectedIDs.count > 1 {
                 Text("\(store.selectedIDs.count) selected").font(.system(size: 12, weight: .semibold))
@@ -60,6 +72,45 @@ struct ToolStrip: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 44)
+    }
+}
+
+/// Narrows the shoot to photos whose files are byte for byte the same, with
+/// progress while they are being compared.
+private struct DuplicatesToggle: View {
+    @Environment(LibraryStore.self) private var store
+
+    var body: some View {
+        Button {
+            store.showDuplicates.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                if let progress = store.duplicateProgress {
+                    ProgressView(value: progress).progressViewStyle(.circular).controlSize(.mini)
+                } else {
+                    Image(systemName: "doc.on.doc")
+                }
+                Text(label)
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .foregroundStyle(store.showDuplicates ? Theme.onAccent : Theme.text)
+            .background(
+                store.showDuplicates ? Theme.accent : Theme.raised,
+                in: RoundedRectangle(cornerRadius: Theme.controlRadius))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help(
+            "Find photos whose files are byte for byte the same, so every copy but one can go. "
+                + "Photos that merely look alike are not duplicates; use Similar for those.")
+    }
+
+    private var label: String {
+        guard store.showDuplicates, store.duplicateProgress == nil else { return "Duplicates" }
+        return store.extraCopyCount == 0 ? "No duplicates" : "Duplicates · \(store.extraCopyCount)"
     }
 }
 

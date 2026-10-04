@@ -39,6 +39,8 @@ public struct Photo: Identifiable, Hashable, Sendable {
     public let companions: [URL]
     public let kind: FileKind
     public let modified: Date
+    /// Bytes of the main file, for spotting duplicates without reading them.
+    public let size: Int64
     public var culling: Culling
     /// The camera model out of EXIF, e.g. "ILCE-6400A". Reading it means
     /// opening the file, which on a card or a hard drive is slow enough that
@@ -48,12 +50,13 @@ public struct Photo: Identifiable, Hashable, Sendable {
 
     public init(
         primary: URL, companions: [URL] = [], kind: FileKind, modified: Date,
-        culling: Culling = Culling(), camera: String? = nil
+        size: Int64 = 0, culling: Culling = Culling(), camera: String? = nil
     ) {
         self.primary = primary
         self.companions = companions
         self.kind = kind
         self.modified = modified
+        self.size = size
         self.culling = culling
         self.camera = camera
     }

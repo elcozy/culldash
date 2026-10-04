@@ -487,6 +487,81 @@ stop
 </details>
 <!-- /diagram -->
 
+## Exact duplicates
+
+The **Duplicates** button narrows the shoot to photos whose files are byte for
+byte the same, so every copy but one can go. Only identical files count: two
+frames of the same scene, or one photo exported twice at different settings,
+are not duplicates here however alike they look — grouping similar shots is for
+those. The promise this makes is that deleting the extras loses nothing at all.
+
+Being sure means reading, and reading everything is far too slow to offer: a
+card of 2,645 Sony RAWs is 63 GB, and on a USB drive that is nine minutes. So
+it goes in three passes, each narrower than the last. Length comes free with
+the folder listing, though it filters less than it sounds — a camera writes
+RAWs of nearly fixed length, and 1,799 of those 2,645 frames shared a length
+with another. Then 64 KB from each end, which separates two different frames
+because they differ within the first few KB of pixel data. Only what still
+agrees is read in full. Cold, from the same drive, that is forty seconds rather
+than nine minutes, for the same answer.
+
+**Keep one of each** then rejects every copy but one, so the ordinary Trash
+button takes them together and ⌘Z brings them back. Nothing is deleted outright
+at any point: a copy that has been picked is the one kept, and if nothing in a
+set is picked, the first is.
+
+<!-- diagram:duplicates -->
+![duplicates](diagrams/duplicates.svg)
+
+<details><summary>PlantUML source</summary>
+
+```plantuml
+@startuml duplicates
+title Exact duplicates: three passes, each narrower than the last
+start
+:every photo in the shoot;
+:group by file length;
+note right
+  Free: the length came with the folder
+  listing. Also a weaker filter than it
+  sounds — a camera writes RAWs of nearly
+  fixed length, and 1,799 of one card's
+  2,645 frames shared a length.
+end note
+if (any group bigger than one?) then (no)
+  :no duplicates;
+  stop
+endif
+:read 64 KB from each end of those files;
+note right
+  Two different frames differ within the
+  first few KB of pixel data, so this
+  separates them for a thousandth of
+  the reading.
+end note
+if (any group still bigger than one?) then (no)
+  :no duplicates;
+  stop
+endif
+:read those files whole, through SHA-256;
+note right
+  Only real copies get this far. Reading
+  them in full is the price of promising
+  that deleting the extras loses nothing.
+end note
+:groups of byte-identical photos;
+:the shoot narrows to them;
+:"Keep one of each" rejects every copy
+but one — a picked copy is the keeper;
+:the Trash button takes them together,
+and Cmd-Z brings them back;
+stop
+@enduml
+```
+
+</details>
+<!-- /diagram -->
+
 ## Trash and Send to
 
 Files only ever go to the Trash on their own drive, with their JPEG and sidecar,

@@ -147,6 +147,19 @@ it came from and carrying its flag, rating and label over, so going back to the
 grid shows it where you would expect rather than leaving it to be found on the
 card later.
 
+## Exact duplicates
+
+**Duplicates** in the tool strip narrows the shoot to photos whose files are
+byte for byte the same, and **Keep one of each** rejects every copy but one —
+the one you picked, if you picked one. The usual Trash button then takes them
+all together, and ⌘Z brings them back.
+
+Only identical files count. Two frames of the same scene are not duplicates
+however alike they look; **Similar** is for those. Checking is done in three
+passes — length, then 64 KB from each end, then the whole file for the few that
+still agree — so a 63 GB card takes about forty seconds rather than the nine
+minutes reading all of it would.
+
 ## Sharing
 
 Viewing a photo or a clip full screen, the share button sits over its top right
