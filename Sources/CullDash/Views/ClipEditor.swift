@@ -37,6 +37,11 @@ struct ClipEditor: View {
             }
         }
         .task(id: url) { await load() }
+        // Leaving the clip has to silence it. Stepping to a photo, going back
+        // to the grid or trashing the clip mid-play all take this view away,
+        // and a player nobody can see carries on playing: the sound of a clip
+        // that is no longer on screen, or has just gone to the Trash.
+        .onDisappear { stop() }
         // Space reaches the player through the store, since the player is
         // this view's own and the keys are read from the window.
         .onChange(of: store.clipPlaybackToggles) { togglePlayback() }
@@ -151,12 +156,23 @@ struct ClipEditor: View {
         if player.timeControlStatus == .paused { player.play() } else { player.pause() }
     }
 
-    private func load() async {
+    /// Silences the clip and lets go of the player's item and its observer.
+    ///
+    /// The periodic observer is the part that matters: the player holds it,
+    /// and while it is attached the player outlives this view, which is how a
+    /// clip kept playing after the view that owned it was gone.
+    private func stop() {
         player.pause()
+        player.replaceCurrentItem(with: nil)
+        if let observer { player.removeTimeObserver(observer) }
+        observer = nil
+    }
+
+    private func load() async {
+        stop()
         selected = nil
         editing = false
         current = 0
-        if let observer { player.removeTimeObserver(observer) }
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
         let seconds = (try? await item.asset.load(.duration).seconds) ?? 0

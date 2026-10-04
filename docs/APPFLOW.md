@@ -296,6 +296,12 @@ about the result — the row still adds up to the whole clip — so saving stays
 unavailable until a piece is dropped. Dropping one removes it; what remains is
 already flush, because the pieces are simply concatenated.
 
+Leaving the clip silences it. Stepping to a photo, going back to the grid or
+trashing the clip mid-play all take the view away, and a player nobody can see
+carries on playing: the periodic time observer keeps it alive, so the sound of
+a clip that is no longer on screen, or has just gone to the Trash, goes on. The
+view therefore pauses, drops its item and removes that observer as it goes.
+
 The player is handed an `AVComposition` of the pieces rather than the file, so
 it plays the edit back and its clock runs in output time. Without that the
 playhead would be measuring the original while the row measured the result, and
