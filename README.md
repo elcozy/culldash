@@ -147,6 +147,16 @@ it came from and carrying its flag, rating and label over, so going back to the
 grid shows it where you would expect rather than leaving it to be found on the
 card later.
 
+## Sharing
+
+Viewing a photo or a clip full screen, the share button sits over its top right
+corner; in the info column it sits beside **Show in Finder**. Both open the
+Mac's own share menu — AirDrop, Messages, Add to Photos, and whatever else is
+installed.
+
+Sharing hands over every file of the photo, so a RAW's camera JPEG goes with it.
+With several photos selected it shares all of them.
+
 ## Run the website
 
 The landing page lives in `site/`. You need Node 20+ and pnpm.

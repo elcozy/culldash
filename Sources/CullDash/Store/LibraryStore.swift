@@ -70,6 +70,12 @@ final class LibraryStore {
         return extraSelection.union([selectedID])
     }
     var selected: Photo? { photos.first { $0.id == selectedID } }
+
+    /// What sharing hands over: every selected photo and all of its files, so
+    /// a RAW's camera JPEG goes with it rather than being left behind.
+    var shareTargets: [URL] {
+        photos.filter { selectedIDs.contains($0.id) }.flatMap(\.allFiles)
+    }
     var selectedIndex: Int? { visible.firstIndex { $0.id == selectedID } }
 
     func count(_ flag: FlagFilter) -> Int {

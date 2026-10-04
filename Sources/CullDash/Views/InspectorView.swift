@@ -75,12 +75,15 @@ private struct PhotoDetails: View {
                     Detail(icon: "doc", text: ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file))
                 }
                 ForEach(photo.companions, id: \.self) { Detail(icon: "doc.on.doc", text: "+ \($0.lastPathComponent)") }
-                Button {
-                    NSWorkspace.shared.activateFileViewerSelecting([photo.primary])
-                } label: {
-                    Label("Show in Finder", systemImage: "folder")
+                HStack(spacing: 6) {
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([photo.primary])
+                    } label: {
+                        Label("Show in Finder", systemImage: "folder")
+                    }
+                    .buttonStyle(ToneButtonStyle(.secondary))
+                    ShareButton(urls: photo.allFiles)
                 }
-                .buttonStyle(ToneButtonStyle(.secondary))
                 .padding(.top, 4)
             }
         }

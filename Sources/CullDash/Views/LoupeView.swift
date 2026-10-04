@@ -32,6 +32,11 @@ struct LoupeView: View {
                     .help(store.zoomed ? "Back to the whole photo (Esc)" : "Back to the grid (Esc)")
                     .padding(12)
                 }
+                .overlay(alignment: .topTrailing) {
+                    ShareButton(urls: store.shareTargets)
+                        .background(Theme.raised.opacity(0.8), in: RoundedRectangle(cornerRadius: Theme.controlRadius))
+                        .padding(12)
+                }
                 Rectangle().fill(Theme.hairline).frame(height: 1)
                 PhotoInfoBar(photo: photo, position: (store.selectedIndex ?? 0) + 1, total: store.visible.count)
             }

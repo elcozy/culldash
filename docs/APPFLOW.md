@@ -495,6 +495,15 @@ editor after all sidecars are written, so stars and labels arrive with them.
 Lightroom does not read picks from other apps, so keepers should carry a star or
 a label.
 
+Sharing is the smaller hand-off, for when one frame or clip has to go to
+somebody rather than into an edit. The button sits over the top right of the
+photo in the full-screen view and beside "Show in Finder" in the info column,
+and opens the Mac's own share menu: AirDrop, Messages, Add to Photos and the
+rest. It passes every file of every selected photo, so a RAW's camera JPEG
+travels with it rather than being left behind. The menu has to hang off a real
+AppKit view, which SwiftUI has none of, so an empty one-point view rides along
+behind the button purely to give it somewhere to appear from.
+
 <!-- diagram:handoffs -->
 ![handoffs](diagrams/handoffs.svg)
 
