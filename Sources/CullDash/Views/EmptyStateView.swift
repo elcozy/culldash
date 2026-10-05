@@ -14,6 +14,8 @@ struct EmptyStateView: View {
     /// Changed by the refresh button, so every drive row starts over and
     /// counts its folders again.
     @State private var generation = 0
+    /// Which recent shoot is being re-opened, so the row shows the click landed.
+    @State private var openingRecent: RecentShoot.ID?
 
     var body: some View {
         HStack(alignment: .top, spacing: 56) {
@@ -56,12 +58,16 @@ struct EmptyStateView: View {
             if !recents.isEmpty {
                 SectionTitle("Recent").padding(.top, 32)
                 ForEach(recents) { recent in
-                    RecentRow(recent: recent) {
+                    RecentRow(recent: recent, busy: openingRecent == recent.id) {
+                        openingRecent = recent.id
                         Task {
                             await store.open(
                                 recent.folders.map { URL(fileURLWithPath: $0, isDirectory: true) },
                                 root: URL(fileURLWithPath: recent.root, isDirectory: true),
                                 title: recent.title)
+                            // Opening normally ends with this screen going
+                            // away; if it could not, the spinner must stop.
+                            openingRecent = nil
                         }
                     }
                 }
@@ -148,6 +154,8 @@ private struct SectionTitle: View {
 
 private struct RecentRow: View {
     let recent: RecentShoot
+    /// This row is the one being opened.
+    var busy = false
     let action: () -> Void
     @State private var hovering = false
 
@@ -165,6 +173,7 @@ private struct RecentRow: View {
                         .foregroundStyle(Theme.subtle)
                 }
                 Spacer()
+                if busy { ProgressView().controlSize(.small).scaleEffect(0.7) }
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 6)
@@ -172,7 +181,7 @@ private struct RecentRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!recent.isAvailable)
+        .disabled(!recent.isAvailable || busy)
         .opacity(recent.isAvailable ? 1 : 0.4)
         .help(recent.isAvailable ? recent.root : "Plug in the drive to open this again")
         .onHover { hovering = $0 }

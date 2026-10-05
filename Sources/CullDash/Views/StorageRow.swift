@@ -4,6 +4,7 @@ import CullDashCore
 /// One drive on the start screen: icon, name, kind and a capacity bar,
 /// "Open all" for every photo on it, and, opened, its photo folders.
 struct StorageRow: View {
+    @Environment(LibraryStore.self) private var store
     let location: StorageLocation
     let isOpen: Bool
     /// Bumped by refresh: the folder list is read again.
@@ -13,6 +14,10 @@ struct StorageRow: View {
     let onOpen: ([URL], String) -> Void
     @State private var folders: [ShootFolder]?
     @State private var hovering = false
+    /// What is being opened, while it is being opened. Reading a drive's
+    /// folders and then its photos takes long enough on a card that a button
+    /// which simply sat there looked like it had missed the click.
+    @State private var opening: URL?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,9 +25,19 @@ struct StorageRow: View {
                 Button(action: onToggle) { header }
                     .buttonStyle(.plain)
                 if location.kind != .mac {
-                    Button("Open all") { Task { await openAll() } }
-                        .buttonStyle(ToneButtonStyle(.secondary))
-                        .help("Every photo on \(location.name), from all its folders, as one shoot")
+                    Button { Task { await openAll() } } label: {
+                        if opening == location.url {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.small)
+                                Text("Opening…")
+                            }
+                        } else {
+                            Text("Open all")
+                        }
+                    }
+                    .buttonStyle(ToneButtonStyle(.secondary))
+                    .disabled(opening != nil)
+                    .help("Every photo on \(location.name), from all its folders, as one shoot")
                 }
             }
             .padding(.vertical, 12)
@@ -40,6 +55,10 @@ struct StorageRow: View {
             folders = nil
             await loadFolders()
         }
+        // Opening ends by this screen going away. When it ends any other way —
+        // an unreadable card, a folder with nothing in it — the spinner has to
+        // stop, or it sits there turning for ever.
+        .onChange(of: store.errorMessage) { if store.errorMessage != nil { opening = nil } }
     }
 
     private var header: some View {
@@ -78,13 +97,19 @@ struct StorageRow: View {
                 FolderRow(
                     icon: "photo.stack", title: "Everything on this drive",
                     count: Self.summary(folders.map(\.photoCount).reduce(0, +), folders.map(\.videoCount).reduce(0, +)),
-                    emphasis: true
+                    emphasis: true, busy: opening == location.url
                 ) {
+                    opening = location.url
                     onOpen(folders.map(\.url), location.name)
                 }
             }
             ForEach(folders) { folder in
-                FolderRow(icon: "folder", title: folder.path, count: Self.summary(folder.photoCount, folder.videoCount), emphasis: false) {
+                FolderRow(
+                    icon: "folder", title: folder.path,
+                    count: Self.summary(folder.photoCount, folder.videoCount),
+                    emphasis: false, busy: opening == folder.url
+                ) {
+                    opening = folder.url
                     onOpen([folder.url], folder.url.lastPathComponent)
                 }
             }
@@ -104,8 +129,12 @@ struct StorageRow: View {
     }
 
     private func openAll() async {
+        opening = location.url
         await loadFolders()
-        guard let folders, !folders.isEmpty else { return }
+        guard let folders, !folders.isEmpty else {
+            opening = nil
+            return
+        }
         onOpen(folders.map(\.url), location.name)
     }
 
@@ -175,6 +204,8 @@ private struct FolderRow: View {
     let title: String
     let count: String
     let emphasis: Bool
+    /// This row is the one being opened.
+    var busy = false
     let action: () -> Void
     @State private var hovering = false
 
@@ -188,9 +219,13 @@ private struct FolderRow: View {
                     .truncationMode(.middle)
                 Spacer()
                 Text(count).font(.system(size: 12)).foregroundStyle(Theme.subtle)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(hovering ? Theme.accent : .clear)
+                if busy {
+                    ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 11)
+                } else {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(hovering ? Theme.accent : .clear)
+                }
             }
             .padding(.vertical, 7)
             .padding(.horizontal, 8)

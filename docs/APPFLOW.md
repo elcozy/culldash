@@ -90,6 +90,14 @@ folders, and skips camera housekeeping folders. A folder, or every folder on a
 card at once, is then scanned in the background and its thumbnails are warmed
 so the grid never waits.
 
+Every one of those openings says so while it happens. "Open all" turns into a
+spinner reading "Opening…", a folder row and a recent shoot each spin where
+their arrow was, and the row that was clicked is the one that spins. The work
+is quick now, but it is never nothing, and a button that merely sat still
+looked like it had missed the click. Opening normally ends with this screen
+going away; when it ends any other way — an unreadable card, a folder with
+nothing in it — the spinner is stopped by hand, so it cannot turn for ever.
+
 Every folder is read through `DirectoryListing`, which asks the file system for
 names, kinds and modification dates together, in batches, with
 `getattrlistbulk`. `FileManager.contentsOfDirectory` fetches attributes one
