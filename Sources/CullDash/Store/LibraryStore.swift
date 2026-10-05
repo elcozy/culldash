@@ -41,6 +41,11 @@ final class LibraryStore {
     /// Bumped by ⌘F; the top bar focuses its search field when it changes.
     var searchRequests = 0
 
+    /// Photos already on their way to the Trash. Delete is a key people hold
+    /// down, and two moves of the same file at the same moment is one failure
+    /// and one success, which is where "couldn't be moved to the Trash" came
+    /// from.
+    var trashing: Set<Photo.ID> = []
     /// Each trash, newest last, so ⌘Z can put photos back.
     var trashHistory: [[TrashedPhoto]] = []
     /// Burst grouping: on/off, the groups found, and progress while finding them.

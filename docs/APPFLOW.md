@@ -573,7 +573,17 @@ stop
 ## Trash and Send to
 
 Files only ever go to the Trash on their own drive, with their JPEG and sidecar,
-and ⌘Z moves them back. Sending opens exactly the photos shown in the chosen
+and ⌘Z moves them back.
+
+Delete takes the photo out of the shoot and moves to the next one straight
+away; the files follow in the background. The moving used to be waited for
+first, which left the deleted photo still selected while its files were going.
+Delete is a key people hold down, so the next press aimed at the same photo,
+two moves of one file raced, and the loser reported that it could not be
+moved — forty out of forty times, when measured. Photos on their way out are
+also noted, so nothing can aim at them twice; and anything the file system
+will not take comes back to the shoot rather than vanishing from a list it is
+still really in. Sending opens exactly the photos shown in the chosen
 editor after all sidecars are written, so stars and labels arrive with them.
 Lightroom does not read picks from other apps, so keepers should carry a star or
 a label.

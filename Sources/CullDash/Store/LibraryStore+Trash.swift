@@ -23,36 +23,67 @@ extension LibraryStore {
     var rejectCount: Int { photos.filter { $0.culling.flag == .reject }.count }
     var canUndoTrash: Bool { !trashHistory.isEmpty }
 
-    /// Delete key: the selected photos go to the Trash now; the next slides in.
+    /// Delete key: the selected photos leave the shoot now and the next one
+    /// slides in. The files follow in the background.
+    ///
+    /// The moving used to be waited for first, which left the deleted photo
+    /// still selected while its files were going. Delete is a key people hold
+    /// down, so the next press aimed at the same photo, two moves of one file
+    /// raced, and the loser reported that it could not be moved.
     func trashSelected() async {
-        let targets = photos.filter { selectedIDs.contains($0.id) }
+        let targets = selectable()
         guard !targets.isEmpty else { return }
         let position = selectedIndex ?? 0
         extraSelection = []
-        await trash(targets)
+
+        take(out: targets)
         let list = visible
         selectedID = list.isEmpty ? nil : list[min(position, list.count - 1)].id
         zoomed = false
+
+        await moveToTrash(targets)
     }
 
     func trashRejects() async {
-        await trash(photos.filter { $0.culling.flag == .reject })
+        let targets = photos.filter { $0.culling.flag == .reject && !trashing.contains($0.id) }
+        guard !targets.isEmpty else { return }
+        take(out: targets)
         keepSelectionVisible()
+        await moveToTrash(targets)
     }
 
-    private func trash(_ targets: [Photo]) async {
-        guard !targets.isEmpty else { return }
+    /// The selected photos that are not already on their way out.
+    private func selectable() -> [Photo] {
+        photos.filter { selectedIDs.contains($0.id) && !trashing.contains($0.id) }
+    }
+
+    /// Out of the shoot at once, and marked as going, so a second Delete can
+    /// neither see them nor aim at their files.
+    private func take(out targets: [Photo]) {
+        let ids = Set(targets.map(\.id))
+        trashing.formUnion(ids)
+        photos.removeAll { ids.contains($0.id) }
+    }
+
+    /// Moves the files. Anything the file system will not take comes back to
+    /// the shoot, rather than being quietly dropped from a list it is still in.
+    private func moveToTrash(_ targets: [Photo]) async {
+        let ids = Set(targets.map(\.id))
+        defer { trashing.subtract(ids) }
         await flushSaves()
         let results = await Task.detached(priority: .userInitiated) {
             targets.map { photo in (photo, try? PhotoTrash.trash(photo)) }
         }.value
+
         let done = results.compactMap { photo, files in files.map { TrashedPhoto(photo: photo, files: $0) } }
-        let gone = Set(done.map(\.photo.id))
-        photos.removeAll { gone.contains($0.id) }
         if !done.isEmpty { trashHistory.append(done) }
-        let failed = results.count - done.count
-        if failed > 0 {
-            errorMessage = "\(failed) photo\(failed == 1 ? "" : "s") couldn't be moved to the Trash."
+
+        let refused = results.filter { $0.1 == nil }.map(\.0)
+        if !refused.isEmpty {
+            photos.append(contentsOf: refused)
+            photos.sort(by: FolderScanner.captureOrder)
+            keepSelectionVisible()
+            errorMessage = "\(refused.count) photo\(refused.count == 1 ? "" : "s") couldn't be moved to the Trash."
         } else {
             show(done.count == 1 ? "\(done[0].photo.name) moved to the Trash · ⌘Z to undo"
                 : "\(done.count) photos moved to the Trash · ⌘Z to undo")
