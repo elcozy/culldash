@@ -6,7 +6,7 @@
 
 export const links = {
     repo: "https://github.com/elcozy/sortRaw.app",
-    download: "https://github.com/elcozy/sortRaw.app",
+    download: "https://github.com/elcozy/sortRaw.app/releases/latest",
 };
 
 export const nav = [
@@ -93,6 +93,6 @@ export const faqs = [
     },
     {
         q: "What does it cost?",
-        a: "CullDash is in early development. The source is on GitHub; a signed download and Homebrew install are on the way.",
+        a: "Nothing. CullDash is free and open source under the MIT licence. Download it from GitHub Releases, or build it from the source.",
     },
 ];

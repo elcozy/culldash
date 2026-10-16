@@ -47,16 +47,15 @@ export function Cta() {
                     <p className="eyebrow mt-8">CullDash</p>
                     <h2 className="headline mx-auto mt-2 max-w-[12em]">Your next shoot, culled before dinner.</h2>
                     <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-                        <a href={links.repo} className="btn">
-                            Get it on GitHub
+                        <a href={links.download} className="btn">
+                            Download for Mac
                         </a>
-                        <a href="#how" className="link">
-                            See how it works ›
+                        <a href={links.repo} className="link">
+                            View the source ›
                         </a>
                     </div>
                     <p className="mt-10 text-sm text-tertiary">
-                        In early development. A signed download is on the way, and later{" "}
-                        <code className="font-mono text-secondary">brew install --cask elcozy/tap/culldash</code>.
+                        Free and open source under the MIT licence. macOS 14 or later.
                     </p>
                 </FadeUp>
             </div>

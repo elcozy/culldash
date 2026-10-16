@@ -634,3 +634,44 @@ LR -> D: reads stars and labels from the sidecars
 
 </details>
 <!-- /diagram -->
+
+## Releasing
+
+CullDash ships as GitHub releases, and the website's download button points at
+the latest one. `scripts/release.sh` reads the version from
+`Resources/Info.plist`, refuses to run on a dirty checkout or a version that is
+already tagged, builds the zip and the DMG through `scripts/package.sh`, writes
+their checksums, pushes the tag and creates the release with install notes.
+Until builds are signed and notarized, those notes include the one Terminal
+command that clears the quarantine flag macOS puts on downloads.
+
+<!-- diagram:release -->
+![release](diagrams/release.svg)
+
+<details><summary>PlantUML source</summary>
+
+```plantuml
+@startuml release
+title Releasing: from a version bump to a download
+actor Maintainer as M
+participant "scripts/release.sh" as R
+participant "scripts/package.sh" as P
+participant "GitHub" as G
+actor Photographer as U
+
+M -> M: bump CFBundleShortVersionString, commit, push
+M -> R: run
+R -> R: stop if the checkout is dirty or v<version> exists
+R -> P: zip, then dmg
+P -> P: build app (ad-hoc, or Developer ID + notarize when .env says so)
+R <-- P: CullDash-<version>.zip and .dmg
+R -> R: write .sha256
+R -> G: push tag v<version>
+R -> G: create release, attach dmg, zip, sha256
+U -> G: download from releases/latest (site's Download button)
+U -> U: drag to Applications; clear quarantine if unsigned
+@enduml
+```
+
+</details>
+<!-- /diagram -->

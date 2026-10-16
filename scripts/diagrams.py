@@ -60,7 +60,7 @@ def java() -> str:
 
 
 def render(files: list[pathlib.Path]) -> None:
-    subprocess.run([java(), "-jar", str(JAR), "-tsvg", "-failfast2", *map(str, files)], cwd=DIAGRAMS, check=True)
+    subprocess.run([java(), "-Djava.awt.headless=true", "-jar", str(JAR), "-tsvg", "-failfast2", *map(str, files)], cwd=DIAGRAMS, check=True)
     for file in files:
         svg = file.with_suffix(".svg").read_text()
         if re.search(r"Syntax Error|Cannot find Graphviz", svg, re.I):
