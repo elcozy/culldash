@@ -36,8 +36,8 @@ writes your decisions into standard XMP sidecars that every editor understands.
 
 ## Install
 
-You need macOS 14 (Sonoma) or later on an Apple silicon Mac (M1 or newer).
-On an Intel Mac, [build it from source](#build-from-source) instead.
+You need macOS 14 (Sonoma) or later. The download is a universal app: the same
+file runs natively on Apple silicon and Intel Macs.
 
 1. Open the [latest release](https://github.com/elcozy/sortRaw.app/releases/latest)
    and download **CullDash-x.y.z.dmg**. The **.zip** holds the same app.
@@ -159,7 +159,9 @@ scripts/make-icon.sh      # redraws Resources/AppIcon.icns from the logo code
 scripts/diagrams.py       # renders docs/diagrams/*.puml into docs/APPFLOW.md (needs Java)
 ```
 
-`scripts/build.sh` drives `swiftc` directly. `Package.swift` describes the same
+`scripts/build.sh app` builds for your Mac's own chip, which is quickest.
+`ARCHS="arm64 x86_64" scripts/build.sh app` builds a universal app instead, and
+`scripts/package.sh` always does. `scripts/build.sh` drives `swiftc` directly. `Package.swift` describes the same
 targets for Xcode and `swift build`.
 
 For testing, `build/CullDash.app/Contents/MacOS/CullDash -folder <path>` opens a

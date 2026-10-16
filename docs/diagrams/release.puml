@@ -10,7 +10,7 @@ M -> M: bump CFBundleShortVersionString, commit, push
 M -> R: run
 R -> R: stop if the checkout is dirty or v<version> exists
 R -> P: zip, then dmg
-P -> P: build app (ad-hoc, or Developer ID + notarize when .env says so)
+P -> P: build arm64 and x86_64, join with lipo (ad-hoc, or Developer ID + notarize when .env says so)
 R <-- P: CullDash-<version>.zip and .dmg
 R -> R: write .sha256
 R -> G: push tag v<version>

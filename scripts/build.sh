@@ -5,6 +5,11 @@
 #     scripts/build.sh app      build build/CullDash.app (ad-hoc signed)
 #     scripts/build.sh install  build it and copy it into /Applications
 #
+# The app is built for this Mac's chip only, which keeps everyday builds quick.
+# ARCHS="arm64 x86_64" builds each chip separately and joins them with lipo
+# into one universal app that runs on Apple silicon and Intel Macs alike;
+# scripts/package.sh does that for every build it hands out.
+#
 # Package.swift describes the same targets for Xcode and `swift build`; this
 # script exists because SwiftPM can break on a half-updated Command Line
 # Tools install while swiftc itself still works.
@@ -18,11 +23,13 @@ FRAMEWORKS=/Library/Developer/CommandLineTools/Library/Developer/Frameworks
 TESTING_LIBS=/Library/Developer/CommandLineTools/Library/Developer/usr/lib
 OUT=build/obj
 mkdir -p "$OUT"
+ARCHS="${ARCHS:-$(uname -m)}"
+MIN_MACOS=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" Resources/Info.plist)
 
 core() {
     local testing=()
     [ "${1:-}" = test ] && testing=(-enable-testing)
-    swiftc -O -module-name CullDashCore -parse-as-library -emit-library -static ${testing[@]+"${testing[@]}"} \
+    swiftc -O -module-name CullDashCore ${TARGET[@]+"${TARGET[@]}"} -parse-as-library -emit-library -static ${testing[@]+"${testing[@]}"} \
         -emit-module -emit-module-path "$OUT/CullDashCore.swiftmodule" \
         $(find Sources/CullDashCore -name '*.swift') -o "$OUT/libCullDashCore.a"
 }
@@ -42,7 +49,9 @@ EOF
     "$OUT/tests"
 }
 
-build_app() {
+# One chip's executable, at $OUT/CullDash. TARGET is the -target flag for a
+# chip other than this Mac's, empty otherwise.
+build_binary() {
     core
     # -framework AVKit explicitly: `import AVKit` autolinks the SwiftUI overlay
     # (_AVKit_SwiftUI) and AVFoundation, but not AVKit itself. Nothing in the
@@ -52,8 +61,19 @@ build_app() {
     # VideoPlayerView from mangled name 'So12AVPlayerViewC'": its superclass
     # AVPlayerView was simply not in the process.
     swiftc -O -module-name CullDash -parse-as-library -I "$OUT" -L "$OUT" -lCullDashCore \
-        -framework AVKit \
+        -framework AVKit ${TARGET[@]+"${TARGET[@]}"} \
         $(find Sources/CullDash -name '*.swift') -o "$OUT/CullDash"
+}
+
+build_app() {
+    local slices=() arch
+    for arch in $ARCHS; do
+        TARGET=(-target "$arch-apple-macos$MIN_MACOS")
+        build_binary
+        cp "$OUT/CullDash" "$OUT/CullDash-$arch"
+        slices+=("$OUT/CullDash-$arch")
+    done
+    lipo -create "${slices[@]}" -output "$OUT/CullDash"
     local app=build/CullDash.app
     command rm -rf "$app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -63,7 +83,7 @@ build_app() {
     # Ad-hoc signature: enough to run on this Mac. Release builds are signed
     # with a Developer ID and notarized instead.
     codesign --force --sign - "$app"
-    echo "Built $app"
+    echo "Built $app ($(lipo -archs "$app/Contents/MacOS/CullDash"))"
 }
 
 # Dragging the app out of build/ in Finder *moves* it, because both are on the

@@ -57,23 +57,49 @@ public enum ClipExporter {
                 asset: composition, presetName: AVAssetExportPresetPassthrough)
         else { throw ClipExportError.exportFailed("This clip cannot be copied without re-encoding.") }
 
-        let watcher = progress.map { report in
-            Task.detached {
-                for await state in session.states(updateInterval: 0.2) {
-                    if case .exporting(let fraction) = state { report(fraction.fractionCompleted) }
-                }
-            }
-        }
-        defer { watcher?.cancel() }
-
         do {
-            try await session.export(to: target, as: fileType(for: url))
+            try await run(session, to: target, as: fileType(for: url), progress: progress)
         } catch {
             try? FileManager.default.removeItem(at: target)
             throw ClipExportError.exportFailed(error.localizedDescription)
         }
 
         return try place(target, from: url, to: destination)
+    }
+
+    /// Runs the export, reporting progress as it goes. macOS 15 added a
+    /// throwing export and a stream of states; macOS 14, which the app still
+    /// supports, only has the older call, whose progress has to be polled.
+    private static func run(
+        _ session: AVAssetExportSession, to target: URL, as type: AVFileType,
+        progress: (@Sendable (Double) -> Void)?
+    ) async throws {
+        if #available(macOS 15, *) {
+            let watcher = progress.map { report in
+                Task.detached {
+                    for await state in session.states(updateInterval: 0.2) {
+                        if case .exporting(let fraction) = state { report(fraction.fractionCompleted) }
+                    }
+                }
+            }
+            defer { watcher?.cancel() }
+            try await session.export(to: target, as: type)
+        } else {
+            session.outputURL = target
+            session.outputFileType = type
+            let watcher = progress.map { report in
+                Task.detached {
+                    while !Task.isCancelled {
+                        report(Double(session.progress))
+                        try? await Task.sleep(for: .milliseconds(200))
+                    }
+                }
+            }
+            defer { watcher?.cancel() }
+            await session.export()
+            if let error = session.error { throw error }
+            guard session.status == .completed else { throw CancellationError() }
+        }
     }
 
     /// The pieces laid end to end, for playing the edit back before it is

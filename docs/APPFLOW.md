@@ -640,7 +640,7 @@ LR -> D: reads stars and labels from the sidecars
 CullDash ships as GitHub releases, and the website's download button points at
 the latest one. `scripts/release.sh` reads the version from
 `Resources/Info.plist`, refuses to run on a dirty checkout or a version that is
-already tagged, builds the zip and the DMG through `scripts/package.sh`, writes
+already tagged, builds the zip and the DMG through `scripts/package.sh` (one universal app, compiled once per chip and joined with `lipo`, so the same download runs on Apple silicon and Intel), writes
 their checksums, pushes the tag and creates the release with install notes.
 Until builds are signed and notarized, those notes include the one Terminal
 command that clears the quarantine flag macOS puts on downloads.
@@ -663,7 +663,7 @@ M -> M: bump CFBundleShortVersionString, commit, push
 M -> R: run
 R -> R: stop if the checkout is dirty or v<version> exists
 R -> P: zip, then dmg
-P -> P: build app (ad-hoc, or Developer ID + notarize when .env says so)
+P -> P: build arm64 and x86_64, join with lipo (ad-hoc, or Developer ID + notarize when .env says so)
 R <-- P: CullDash-<version>.zip and .dmg
 R -> R: write .sha256
 R -> G: push tag v<version>

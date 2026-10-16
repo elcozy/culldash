@@ -59,7 +59,8 @@ STAGE=build/dmg
 DMG="build/CullDash-$VERSION.dmg"
 ZIP="build/CullDash-$VERSION.zip"
 
-scripts/build.sh app
+# Universal, so the same download runs on Apple silicon and Intel Macs.
+ARCHS="arm64 x86_64" scripts/build.sh app
 
 if [ -n "${DEVELOPER_ID:-}" ]; then
     # --options runtime is the hardened runtime; --timestamp is a trusted
