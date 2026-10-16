@@ -55,7 +55,7 @@ export function Cta() {
                         </a>
                     </div>
                     <p className="mt-10 text-sm text-tertiary">
-                        Free and open source under the MIT licence. macOS 14 or later.
+                        Free and open source under the MIT licence. macOS 14 or later, on Apple silicon and Intel.
                     </p>
                 </FadeUp>
             </div>

@@ -3,22 +3,24 @@ import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { KeysBand } from "@/components/KeysBand";
 import { Speed, Tiles } from "@/components/Tiles";
-import { Compare, Privacy } from "@/components/Trust";
+import { Compare } from "@/components/Trust";
 import { Walkthrough } from "@/components/Walkthrough";
+import { Why } from "@/components/Why";
 
-/** The CullDash page, in the rhythm of Apple's product pages: white and
- * light-grey sections in turn, one black section for the keys. */
+/** The CullDash page, after maccy.app: the icon and download up top, six
+ * reasons why, then the app shown working. Off-white and pale-grey sections
+ * alternate, with one dark section for the keys. */
 export default function Home() {
     return (
         <>
             <Header />
             <main>
                 <Hero />
+                <Why />
                 <Tiles />
                 <Speed />
                 <Walkthrough />
                 <KeysBand />
-                <Privacy />
                 <Compare />
                 <Faq />
                 <Cta />

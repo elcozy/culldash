@@ -10,10 +10,10 @@ export const links = {
 };
 
 export const nav = [
+    { id: "why", label: "Why" },
     { id: "features", label: "Features" },
     { id: "how", label: "How it works" },
     { id: "keys", label: "Keys" },
-    { id: "privacy", label: "Privacy" },
     { id: "compare", label: "Compare" },
 ];
 
@@ -66,6 +66,16 @@ export const steps = [
         title: "Send the keepers on",
         body: "Open the photos you kept in Lightroom, Capture One or any editor. Stars and labels travel with them in XMP sidecars.",
     },
+];
+
+/** The six reasons in the "Why" grid, after maccy.app's. `tone` colours the icon. */
+export const reasons = [
+    { title: "No fluff", tone: "#0a84ff", icon: "M4 6h16M4 12h10M4 18h6", body: "CullDash does one job: get you from a full card to the keepers. No catalogue, no import, no editing tools you already have elsewhere." },
+    { title: "Fast", tone: "#ff9f0a", icon: "M13 2L4 14h7l-1 8 9-12h-7l1-8z", body: "It shows the preview your camera already stored inside each RAW, about 30 ms a frame. Hold an arrow key and the shoot flies past." },
+    { title: "Keyboard-first", tone: "#bf5af2", icon: "M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10", body: "P keeps, X rejects, 1 to 5 adds stars. Every decision is one key and it moves on by itself, so your hands never leave the keyboard." },
+    { title: "Private", tone: "#30d158", icon: "M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z", body: "Everything happens on your Mac. Similar shots are found with Apple's on-device Vision. No account, no upload, no tracking." },
+    { title: "Native", tone: "#ff375f", icon: "M4 5h16v11H4zM9 20h6M12 16v4", body: "Built in Swift and SwiftUI. It looks and feels like a Mac app, runs natively on Apple silicon and Intel, and the download is about 2 MB." },
+    { title: "Open source", tone: "var(--ink)", icon: "M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16", body: "CullDash is open source under the MIT licence, and free. The full source is on GitHub, to read, build or change however you like." },
 ];
 
 export const principles = [
