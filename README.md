@@ -10,7 +10,7 @@ files and want to get down to the good ones before opening an editor. It does
 not import, copy or catalogue anything. It reads the files where they are and
 writes your decisions into standard XMP sidecars that every editor understands.
 
-[**Download for Mac**](https://github.com/elcozy/sortRaw.app/releases/latest) ·
+[**Download for Mac**](https://github.com/elcozy/culldash/releases/latest) ·
 [Website](https://culldash.vercel.app) ·
 [How it works](docs/APPFLOW.md)
 
@@ -39,7 +39,7 @@ writes your decisions into standard XMP sidecars that every editor understands.
 You need macOS 14 (Sonoma) or later. The download is a universal app: the same
 file runs natively on Apple silicon and Intel Macs.
 
-1. Open the [latest release](https://github.com/elcozy/sortRaw.app/releases/latest)
+1. Open the [latest release](https://github.com/elcozy/culldash/releases/latest)
    and download **CullDash-x.y.z.dmg**. The **.zip** holds the same app.
 2. Open the DMG and drag **CullDash** onto **Applications**.
 3. Builds are not notarized by Apple yet, so the first time macOS says
@@ -139,7 +139,7 @@ You need macOS 14 or later and the Xcode Command Line Tools
 (`xcode-select --install` if you don't have them). Full Xcode is not needed.
 
 ```sh
-git clone https://github.com/elcozy/sortRaw.app.git culldash
+git clone https://github.com/elcozy/culldash.git
 cd culldash
 scripts/build.sh app          # makes build/CullDash.app (about a minute the first time)
 open build/CullDash.app
@@ -178,7 +178,7 @@ folder straight away, `-mode loupe` goes straight to the full-screen view, and
 
 ## Releasing
 
-Releases live on [GitHub Releases](https://github.com/elcozy/sortRaw.app/releases),
+Releases live on [GitHub Releases](https://github.com/elcozy/culldash/releases),
 each with the app as a DMG, as a zip and a SHA-256 checksum file.
 
 1. Bump `CFBundleShortVersionString` (and `CFBundleVersion`) in

@@ -5,8 +5,8 @@
  */
 
 export const links = {
-    repo: "https://github.com/elcozy/sortRaw.app",
-    download: "https://github.com/elcozy/sortRaw.app/releases/latest",
+    repo: "https://github.com/elcozy/culldash",
+    download: "https://github.com/elcozy/culldash/releases/latest",
 };
 
 export const nav = [
